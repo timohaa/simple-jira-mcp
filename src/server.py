@@ -23,38 +23,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create MCP server
-mcp = FastMCP(
-    name="jira",
-    instructions=(
-        "Jira Cloud integration server. Use list_configs to see available "
-        "Jira instances, search_issues to find issues via JQL, get_issue "
-        "for details, create_issue to create new issues, and "
-        "download_attachment to retrieve files."
-    ),
-)
+mcp = FastMCP(name="jira")
 
 
-@mcp.tool(
-    description=(
-        "List all configured Jira instances available to this server. "
-        "Use this to discover which config_id values can be used with other tools."
-    )
-)
+@mcp.tool(description="List configured Jira instances and their config_id values.")
 async def list_configs() -> dict[str, Any]:
-    """List all configured Jira instances."""
+    """List configured Jira instances."""
     logger.info("list_configs invoked")
     return await _list_configs()
 
 
-@mcp.tool(
-    description=(
-        "Search for Jira issues using JQL (Jira Query Language). "
-        "Returns a list of matching issues with key fields. "
-        "Note: Jira Cloud requires 'bounded' queries - you must include "
-        "at least one limiting filter such as a project, date range, or assignee. "
-        "Use next_page_token from the response for pagination."
-    )
-)
+@mcp.tool(description="Search issues via JQL. Requires bounded query.")
 async def search_issues(
     jql: str,
     config_id: str | None = None,
@@ -62,15 +41,7 @@ async def search_issues(
     next_page_token: str | None = None,
     fields: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Search for Jira issues using JQL.
-
-    Args:
-        jql: JQL query string (must include at least one filter).
-        config_id: Configuration ID to use. Defaults to first config.
-        limit: Maximum results to return (1-100). Defaults to 50.
-        next_page_token: Token for cursor-based pagination from previous response.
-        fields: Specific fields to return.
-    """
+    """Search for Jira issues using JQL."""
     logger.info("search_issues invoked (config_id=%s)", config_id or "default")
     return await _search_issues(
         jql,
@@ -81,27 +52,14 @@ async def search_issues(
     )
 
 
-@mcp.tool(
-    description=(
-        "Fetch complete details for a single Jira issue by its key "
-        "(e.g., ONE-123). Returns full description, comments, "
-        "attachments, and status information."
-    )
-)
+@mcp.tool(description="Get full details for a Jira issue by key (e.g., ONE-123).")
 async def get_issue(
     issue_key: str,
     config_id: str | None = None,
     include_comments: bool = True,
     include_attachments: bool = True,
 ) -> dict[str, Any]:
-    """Get detailed information for a single issue.
-
-    Args:
-        issue_key: The Jira issue key (e.g., "ONE-123").
-        config_id: Configuration ID to use. Defaults to first config.
-        include_comments: Whether to include comments. Defaults to true.
-        include_attachments: Whether to include attachment metadata.
-    """
+    """Get detailed information for a single issue."""
     logger.info(
         "get_issue invoked (issue_key=%s, config_id=%s)",
         issue_key,
@@ -115,13 +73,7 @@ async def get_issue(
     )
 
 
-@mcp.tool(
-    description=(
-        "Create a new Jira issue in the specified project. "
-        "Returns the created issue's key and URL. "
-        "Use this to log new tasks, bugs, or other work items."
-    )
-)
+@mcp.tool(description="Create a Jira issue. Returns issue key and URL.")
 async def create_issue(
     project_key: str,
     summary: str,
@@ -132,18 +84,7 @@ async def create_issue(
     assignee_account_id: str | None = None,
     config_id: str | None = None,
 ) -> dict[str, Any]:
-    """Create a new Jira issue.
-
-    Args:
-        project_key: The project key (e.g., "ONE").
-        summary: The issue title/summary. Max 255 characters.
-        issue_type: The issue type. Defaults to "Task".
-        description: Optional description (plain text).
-        priority: Optional priority (Highest, High, Medium, Low, Lowest).
-        labels: Optional list of labels.
-        assignee_account_id: Optional assignee account ID.
-        config_id: Configuration ID to use.
-    """
+    """Create a new Jira issue."""
     logger.info(
         "create_issue invoked (project_key=%s, config_id=%s)",
         project_key,
@@ -161,27 +102,14 @@ async def create_issue(
     )
 
 
-@mcp.tool(
-    description=(
-        "Download an attachment from a Jira issue to a local file. "
-        "Useful for retrieving images, documents, or other files "
-        "attached to issues for analysis."
-    )
-)
+@mcp.tool(description="Download an attachment from a Jira issue to a local file.")
 async def download_attachment(
     issue_key: str,
     attachment_id: str,
     output_dir: str | None = None,
     config_id: str | None = None,
 ) -> dict[str, Any]:
-    """Download an attachment from a Jira issue.
-
-    Args:
-        issue_key: The Jira issue key (e.g., "ONE-123").
-        attachment_id: The attachment ID from get_issue response.
-        output_dir: Directory to save the file. Defaults to current directory.
-        config_id: Configuration ID to use.
-    """
+    """Download an attachment from a Jira issue."""
     logger.info(
         "download_attachment invoked (issue_key=%s, attachment_id=%s, config_id=%s)",
         issue_key,
