@@ -76,8 +76,7 @@ Authoritative reference for the Jira MCP tools.
 ## Validation Notes
 
 - JQL must include at least one bounding filter; semicolons and newlines are rejected.
-- `limit` must be 1-100; `start_at` is accepted for validation but ignored
-  by Jira v3.
+- `limit` must be 1-100.
 - `issue_key` pattern: `^[A-Z][A-Z0-9]+-\\d+$`;
   `project_key`: `^[A-Z][A-Z0-9]+$`.
 - `attachment_id` must be numeric.

@@ -275,6 +275,7 @@ and JQL patterns.
 ./check.sh -m    # Type checking only
 ./check.sh -t    # Tests only
 ./check.sh -c    # Tests with coverage
+./check.sh -f    # Auto-fix linting issues
 ```
 
 ## License

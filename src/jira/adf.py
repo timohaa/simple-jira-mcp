@@ -6,6 +6,43 @@ from typing import Any
 AdfNode = dict[str, Any] | list[Any] | str | int | float | bool | None
 
 
+def _collect_text(node: AdfNode) -> list[str]:
+    """Recursively collect text fragments from an ADF node.
+
+    Args:
+        node: An ADF node (dict, list, or scalar).
+
+    Returns:
+        List of text fragments in document order.
+    """
+    if isinstance(node, list):
+        fragments: list[str] = []
+        for item in node:
+            fragments.extend(_collect_text(item))
+        return fragments
+
+    if not isinstance(node, dict):
+        return []
+
+    node_type = node.get("type")
+
+    if node_type == "text":
+        text = node.get("text", "")
+        return [text] if text else []
+
+    if node_type == "hardBreak":
+        return ["\n"]
+
+    content = node.get("content", [])
+    if not isinstance(content, list):
+        return []
+
+    fragments = []
+    for child in content:
+        fragments.extend(_collect_text(child))
+    return fragments
+
+
 def adf_to_text(adf: dict[str, Any] | None) -> str:
     """Convert Atlassian Document Format to plain text.
 
@@ -18,35 +55,7 @@ def adf_to_text(adf: dict[str, Any] | None) -> str:
     if not adf or not isinstance(adf, dict):
         return ""
 
-    texts: list[str] = []
-
-    def walk(node: AdfNode) -> None:
-        """Recursively walk the ADF tree and extract text."""
-        if isinstance(node, dict):
-            node_type = node.get("type")
-
-            # Extract text content
-            if node_type == "text":
-                text = node.get("text", "")
-                if text:
-                    texts.append(text)
-
-            # Handle hard breaks as newlines
-            elif node_type == "hardBreak":
-                texts.append("\n")
-
-            # Recurse into content
-            content = node.get("content", [])
-            if isinstance(content, list):
-                for child in content:
-                    walk(child)
-
-        elif isinstance(node, list):
-            for item in node:
-                walk(item)
-
-    walk(adf)
-    return " ".join(texts).strip()
+    return " ".join(_collect_text(adf)).strip()
 
 
 def text_to_adf(text: str) -> dict[str, Any]:

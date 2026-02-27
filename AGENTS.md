@@ -4,15 +4,25 @@
 
 Use scopewalker-mcp tools to understand and validate the code:
 
-- `get_directory_tree` - Project structure
+- `get_line_counts` - File line metrics (code/blank/comment)
+- `get_functions` - Function counts and per-function line metrics (`detail=lines`)
 - `get_code_inventory` - Classes, functions, exports
-- `get_line_counts` / `get_function_line_counts` - Line metrics
 - `check_thresholds` - Verify size limits (files <300, functions <100 lines)
-- `get_complexity_metrics` - Find code needing refactoring
-- `get_code_smells` - Find TODO, FIXME, HACK markers
-- `get_git_context` - Changed files, hotspots, blame
+- `get_complexity_metrics` - Nesting depth, params, cognitive complexity
+- `get_code_smells` - TODO, FIXME, HACK markers and unsafe casts
+- `get_documentation_coverage` - Find undocumented functions/classes
 
 Run `check_thresholds` before committing.
+
+### Refactoring Safety
+
+**Before any major refactoring** (splitting large functions/files,
+restructuring modules, extracting classes):
+
+1. Run `./check.sh -c` to check current test coverage for the affected code.
+2. If coverage is insufficient, **write tests first** to verify existing
+   behavior before refactoring.
+3. After refactoring, run the full test suite (`./check.sh -t`) to confirm correctness.
 
 ## MCP Server Critical Rules
 

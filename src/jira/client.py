@@ -109,38 +109,16 @@ class JiraClient:
 
     async def create_issue(
         self,
-        project_key: str,
-        summary: str,
-        *,
-        issue_type: str = "Task",
-        description: str | None = None,
-        priority: str | None = None,
-        labels: list[str] | None = None,
-        assignee_account_id: str | None = None,
+        params: CreateIssueParams,
     ) -> dict[str, Any] | ErrorResponse:
         """Create a new issue.
 
         Args:
-            project_key: The project key (e.g., "ONE").
-            summary: The issue title/summary.
-            issue_type: The issue type (default: "Task").
-            description: Optional description (plain text).
-            priority: Optional priority level.
-            labels: Optional list of labels.
-            assignee_account_id: Optional assignee account ID.
+            params: Issue creation parameters.
 
         Returns:
             Created issue info or error response.
         """
-        params = CreateIssueParams(
-            project_key=project_key,
-            summary=summary,
-            issue_type=issue_type,
-            description=description,
-            priority=priority,
-            labels=labels,
-            assignee_account_id=assignee_account_id,
-        )
         return await self._create.create_issue(params)
 
     async def download_attachment(

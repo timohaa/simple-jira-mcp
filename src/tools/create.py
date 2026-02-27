@@ -4,6 +4,7 @@ from typing import Any
 
 from src.config import get_config
 from src.jira.client import JiraClient
+from src.jira.create import CreateIssueParams
 from src.utils.errors import CONFIG_NOT_FOUND, VALIDATION_ERROR, error_response
 from src.utils.validation import validate_project_key
 
@@ -74,12 +75,13 @@ async def create_issue(
 
     # Create issue
     client = JiraClient(config)
-    return await client.create_issue(
-        project_key,
-        summary,
+    params = CreateIssueParams(
+        project_key=project_key,
+        summary=summary,
         issue_type=issue_type,
         description=description,
         priority=priority,
         labels=labels,
         assignee_account_id=assignee_account_id,
     )
+    return await client.create_issue(params)
