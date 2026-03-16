@@ -16,7 +16,7 @@ from src.config import JiraConfig
 from src.jira.attachment import AttachmentOperation
 from src.jira.create import CreateIssueParams, CreateOperation
 from src.jira.issue import IssueOperation
-from src.jira.search import SearchOperation, SearchParams
+from src.jira.search import DEFAULT_SEARCH_FIELDS, SearchOperation, SearchParams
 from src.utils.errors import ErrorResponse
 
 # Re-export dataclasses for external use
@@ -68,20 +68,8 @@ class JiraClient:
             max_results=max_results,
             start_at=start_at,
             next_page_token=next_page_token,
-            fields=fields if fields is not None else [],
+            fields=fields if fields is not None else DEFAULT_SEARCH_FIELDS.copy(),
         )
-        # Use default fields if none specified
-        if not params.fields:
-            params.fields = [
-                "summary",
-                "status",
-                "assignee",
-                "priority",
-                "updated",
-                "created",
-                "labels",
-                "issuetype",
-            ]
         return await self._search.search(params)
 
     async def get_issue(

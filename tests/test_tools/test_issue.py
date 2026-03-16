@@ -81,7 +81,6 @@ class TestGetIssueValidation:
             mock_get.return_value = mock_response
             await get_issue("one-123")
 
-        # Should be normalized to uppercase
         mock_get.assert_called_once()
         assert mock_get.call_args.args[0] == "ONE-123"
 

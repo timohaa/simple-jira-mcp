@@ -15,12 +15,14 @@ Authoritative reference for the Jira MCP tools.
 - Inputs: `jql` (required, must include a filter), `config_id` (optional),
   `limit` 1-100 (default 50), `next_page_token` (cursor pagination),
   `fields` allowlist forwarded to Jira.
+  `start_at` is accepted but deprecated and ignored by Jira API v3; use
+  `next_page_token` for pagination instead.
 - Returns: `{"total": int, "max_results": int, "issues": [...],
   "next_page_token": str?}`.
   Issues are normalized to key, summary, status, assignee, priority, issue_type,
   labels, created, updated, url.
-- Errors: `INVALID_JQL`, `UNBOUNDED_QUERY`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
-  `RATE_LIMITED`, `JIRA_ERROR`.
+- Errors: `INVALID_JQL`, `UNBOUNDED_QUERY`, `VALIDATION_ERROR`, `AUTH_FAILED`,
+  `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
 
 ### get_issue
 
@@ -30,8 +32,8 @@ Authoritative reference for the Jira MCP tools.
 - Returns: Plain-text summary/description, reporter/assignee, status, priority,
   issue_type, labels, created/updated/resolved dates, url, optional `comments`
   and `attachments` with `size_kb` and `mime_type`.
-- Errors: `ISSUE_NOT_FOUND`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`, `RATE_LIMITED`,
-  `JIRA_ERROR`.
+- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
+  `RATE_LIMITED`, `JIRA_ERROR`.
 
 ### create_issue
 
@@ -53,7 +55,7 @@ Authoritative reference for the Jira MCP tools.
 - Returns: `{"success": true, "filename": str, "path": str, "size_kb": float,
   "mime_type": str}`.
 - Errors: `ATTACHMENT_NOT_FOUND`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
-  `DOWNLOAD_FAILED`, `VALIDATION_ERROR`, `RATE_LIMITED`.
+  `DOWNLOAD_FAILED`, `VALIDATION_ERROR`, `RATE_LIMITED`, `JIRA_ERROR`.
 
 ## Error Codes
 
