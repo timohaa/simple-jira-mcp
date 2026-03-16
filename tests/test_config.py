@@ -16,14 +16,12 @@ from src.config import (
 @pytest.fixture
 def clean_config():
     """Reset config state before and after each test."""
-    # Store original env var
     original = os.environ.get("JIRA_CONFIG_JSON")
 
     reset_config_state()
 
     yield
 
-    # Restore original env var
     if original:
         os.environ["JIRA_CONFIG_JSON"] = original
     elif "JIRA_CONFIG_JSON" in os.environ:

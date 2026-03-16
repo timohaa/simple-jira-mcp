@@ -2,7 +2,6 @@
 
 from typing import Any
 
-# Type alias for ADF nodes (can be dict, list, or primitive)
 AdfNode = dict[str, Any] | list[Any] | str | int | float | bool | None
 
 
@@ -58,6 +57,25 @@ def adf_to_text(adf: dict[str, Any] | None) -> str:
     return " ".join(_collect_text(adf)).strip()
 
 
+def _build_paragraph_content(para: str) -> list[dict[str, Any]]:
+    """Build ADF paragraph content nodes from a single paragraph string.
+
+    Args:
+        para: A paragraph of plain text (may contain single newlines).
+
+    Returns:
+        List of ADF text and hardBreak nodes.
+    """
+    lines = para.split("\n")
+    para_content: list[dict[str, Any]] = []
+    for i, line in enumerate(lines):
+        if line:
+            para_content.append({"type": "text", "text": line})
+        if i < len(lines) - 1:
+            para_content.append({"type": "hardBreak"})
+    return para_content
+
+
 def text_to_adf(text: str) -> dict[str, Any]:
     """Convert plain text to Atlassian Document Format.
 
@@ -74,24 +92,13 @@ def text_to_adf(text: str) -> dict[str, Any]:
             "content": [],
         }
 
-    # Split text into paragraphs
-    paragraphs = text.split("\n\n")
     content: list[dict[str, Any]] = []
-
-    for para in paragraphs:
-        if para.strip():
-            # Handle single newlines within paragraphs
-            lines = para.split("\n")
-            para_content: list[dict[str, Any]] = []
-
-            for i, line in enumerate(lines):
-                if line:
-                    para_content.append({"type": "text", "text": line})
-                if i < len(lines) - 1:
-                    para_content.append({"type": "hardBreak"})
-
-            if para_content:
-                content.append({"type": "paragraph", "content": para_content})
+    for para in text.split("\n\n"):
+        if not para.strip():
+            continue
+        para_content = _build_paragraph_content(para)
+        if para_content:
+            content.append({"type": "paragraph", "content": para_content})
 
     return {
         "type": "doc",

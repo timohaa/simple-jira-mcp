@@ -22,7 +22,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create MCP server
 mcp = FastMCP(name="jira")
 
 
@@ -126,7 +125,6 @@ async def download_attachment(
 
 async def main() -> None:
     """Run the MCP server."""
-    # Load configurations on startup
     try:
         load_configs()
     except ValueError as e:

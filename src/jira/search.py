@@ -25,7 +25,6 @@ from src.utils.errors import (
 
 logger = logging.getLogger(__name__)
 
-# Default fields to return from search
 DEFAULT_SEARCH_FIELDS = [
     "summary",
     "status",
@@ -66,7 +65,6 @@ class SearchOperation(JiraClientBase):
             getattr(self.config, "id", None),
             params.jql,
         )
-        # Log deprecation warning if start_at is used
         if params.start_at != 0:
             logger.warning(
                 "start_at parameter is deprecated and ignored by Jira API v3. "
@@ -145,7 +143,6 @@ class SearchOperation(JiraClientBase):
             "issues": issues,
         }
 
-        # Include nextPageToken for cursor-based pagination if present
         next_token = data.get("nextPageToken")
         if next_token:
             result["next_page_token"] = next_token

@@ -6,7 +6,6 @@ from typing import Any
 ErrorResponse = dict[str, Any]
 
 
-# Centralized error codes used across tools
 AUTH_FAILED = "AUTH_FAILED"
 CONFIG_NOT_FOUND = "CONFIG_NOT_FOUND"
 ISSUE_NOT_FOUND = "ISSUE_NOT_FOUND"

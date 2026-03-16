@@ -276,6 +276,8 @@ and JQL patterns.
 ./check.sh -t    # Tests only
 ./check.sh -c    # Tests with coverage
 ./check.sh -f    # Auto-fix linting issues
+./check.sh -a    # Explicitly run all checks
+./check.sh -h    # Show help
 ```
 
 ## License

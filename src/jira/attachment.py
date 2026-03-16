@@ -50,7 +50,6 @@ class AttachmentOperation(JiraClientBase):
         """
         url = f"{self.base_url}{ATTACHMENT_PATH}/{attachment_id}"
 
-        # Create safe output path
         safe_filename = sanitize_filename(filename)
         target_dir = output_dir / issue_key
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -81,7 +80,6 @@ class AttachmentOperation(JiraClientBase):
                         DOWNLOAD_FAILED, f"Download failed: {response.status_code}"
                     )
 
-                # Write file
                 target_path.write_bytes(response.content)
 
                 content_type = response.headers.get(

@@ -97,20 +97,16 @@ class CreateOperation(JiraClientBase):
         self, response: httpx.Response
     ) -> dict[str, Any] | ErrorResponse:
         """Handle create_issue response."""
-        # Handle known error status codes
         status_error = self._get_status_error(response.status_code)
         if status_error:
             return status_error
 
-        # Handle bad request with detailed error extraction
         if response.status_code == HTTP_BAD_REQUEST:
             return self._handle_bad_request(response)
 
-        # Handle unexpected status codes
         if response.status_code not in (HTTP_OK, HTTP_CREATED):
             return self._handle_unexpected_status(response)
 
-        # Success
         data = response.json()
         key = data.get("key", "")
         return {
@@ -141,7 +137,6 @@ class CreateOperation(JiraClientBase):
         errors = data.get("errors", {}) if isinstance(data, dict) else {}
         messages = data.get("errorMessages", []) if isinstance(data, dict) else []
 
-        # Check for specific field errors
         if isinstance(errors, dict):
             if "issuetype" in errors:
                 return error_response(INVALID_ISSUE_TYPE, str(errors["issuetype"]))

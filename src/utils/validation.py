@@ -2,17 +2,14 @@
 
 import re
 
-# Regex patterns for validation
 ISSUE_KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
 PROJECT_KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9]+$")
 ATTACHMENT_ID_PATTERN = re.compile(r"^\d+$")
 
-# Validation constants
 MAX_LIMIT = 100
 MIN_LIMIT = 1
 DISALLOWED_JQL_PATTERN = re.compile(r"[;\r\n]")
 
-# Allowed fields for search queries
 ALLOWED_SEARCH_FIELDS = frozenset(
     [
         "summary",
@@ -33,7 +30,6 @@ ALLOWED_SEARCH_FIELDS = frozenset(
     ]
 )
 
-# Keywords that indicate a bounded JQL query
 BOUNDING_KEYWORDS = frozenset(
     [
         "project",
@@ -165,10 +161,8 @@ def sanitize_filename(filename: str) -> str:
     Returns:
         A safe filename with dangerous characters removed.
     """
-    # First, extract just the filename (remove path components)
-    # Handle both forward and backslash path separators
+    # Accept both forward and backslash separators before splitting, so
+    # paths like "C:\Users\...\file.txt" are handled the same as POSIX paths.
     safe = filename.replace("\\", "/").split("/")[-1]
-    # Remove dangerous characters
     safe = re.sub(r'[:\x00<>"|?*]', "_", safe)
-    # Ensure we have a valid filename
     return safe.strip() or "attachment"

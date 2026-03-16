@@ -36,7 +36,6 @@ async def create_issue(
     Returns:
         Created issue info or error response.
     """
-    # Validate project key
     if not project_key or not project_key.strip():
         return error_response(VALIDATION_ERROR, "Project key is required")
 
@@ -49,7 +48,6 @@ async def create_issue(
             "Expected format: PROJECT (uppercase letters and numbers)",
         )
 
-    # Validate summary
     if not summary or not summary.strip():
         return error_response(VALIDATION_ERROR, "Summary is required")
 
@@ -61,11 +59,9 @@ async def create_issue(
             f"Summary exceeds maximum length of {MAX_SUMMARY_LENGTH} characters",
         )
 
-    # Validate issue type
     if not issue_type or not issue_type.strip():
         issue_type = "Task"
 
-    # Get configuration
     config = get_config(config_id)
     if not config:
         msg = f"Configuration '{config_id}' not found"
@@ -73,7 +69,6 @@ async def create_issue(
             msg = "No configuration available"
         return error_response(CONFIG_NOT_FOUND, msg)
 
-    # Create issue
     client = JiraClient(config)
     params = CreateIssueParams(
         project_key=project_key,

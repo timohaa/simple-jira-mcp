@@ -89,12 +89,10 @@ async def search_issues(
     Returns:
         Search results or error response.
     """
-    # Validate inputs
     validation_error = _validate_search_params(jql, limit, start_at, fields)
     if validation_error:
         return validation_error
 
-    # Get configuration
     config = get_config(config_id)
     if not config:
         if config_id:
@@ -103,7 +101,6 @@ async def search_issues(
             msg = "No configuration available"
         return error_response(CONFIG_NOT_FOUND, msg)
 
-    # Execute search
     client = JiraClient(config)
     return await client.search(
         jql,

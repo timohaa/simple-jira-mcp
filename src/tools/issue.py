@@ -25,7 +25,6 @@ async def get_issue(
     Returns:
         Issue details or error response.
     """
-    # Validate inputs
     if not issue_key or not issue_key.strip():
         return error_response(VALIDATION_ERROR, "Issue key is required")
 
@@ -37,7 +36,6 @@ async def get_issue(
             f"Invalid issue key format: '{issue_key}'. Expected format: PROJECT-123",
         )
 
-    # Get configuration
     config = get_config(config_id)
     if not config:
         msg = f"Configuration '{config_id}' not found"
@@ -45,7 +43,6 @@ async def get_issue(
             msg = "No configuration available"
         return error_response(CONFIG_NOT_FOUND, msg)
 
-    # Fetch issue
     client = JiraClient(config)
     return await client.get_issue(
         issue_key,

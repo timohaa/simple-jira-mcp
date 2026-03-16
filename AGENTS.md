@@ -1,101 +1,75 @@
 # AGENTS.md
 
-## Use Scopewalker MCP Tools
+## Project
 
-Use scopewalker-mcp tools to understand and validate the code:
+MCP server providing Jira Cloud integration for AI agents via stdio transport.
+Built with FastMCP (Python). See `API_REFERENCE.md` for tool schemas, error
+codes, and JQL patterns.
 
-- `get_line_counts` - File line metrics (code/blank/comment)
-- `get_functions` - Function counts and per-function line metrics (`detail=lines`)
-- `get_code_inventory` - Classes, functions, exports
-- `check_thresholds` - Verify size limits (files <300, functions <100 lines)
-- `get_complexity_metrics` - Nesting depth, params, cognitive complexity
-- `get_code_smells` - TODO, FIXME, HACK markers and unsafe casts
-- `get_documentation_coverage` - Find undocumented functions/classes
+## Critical: No stdout
 
-Run `check_thresholds` before committing.
-
-### Refactoring Safety
-
-**Before any major refactoring** (splitting large functions/files,
-restructuring modules, extracting classes):
-
-1. Run `./check.sh -c` to check current test coverage for the affected code.
-2. If coverage is insufficient, **write tests first** to verify existing
-   behavior before refactoring.
-3. After refactoring, run the full test suite (`./check.sh -t`) to confirm correctness.
-
-## MCP Server Critical Rules
-
-### STDIO Transport
-
-**CRITICAL:** This is an MCP server using stdio transport.
-
-- **NEVER** write to stdout. This includes:
-  - `print()` statements in Python
-  - Any library that writes to stdout by default
-- Writing to stdout corrupts JSON-RPC messages and breaks the MCP protocol.
-- **ALWAYS** use `stderr` for logging via the `logging` module.
-
-### Tool Implementation
-
-- All tools must validate inputs before execution.
-- Return structured JSON responses matching the schemas in `API_REFERENCE.md`.
-- Use the two-tier error model:
-  - Protocol errors for invalid tool calls (JSON-RPC errors)
-  - Execution errors with `isError: true` for runtime failures
-- Never expose internal errors or stack traces to clients.
+**NEVER** write to stdout — not `print()`, not any library default.
+Stdout is the MCP JSON-RPC transport channel. Any stray output corrupts the
+protocol and breaks the server silently.
+Use `stderr` via the `logging` module for all diagnostics.
 
 ## Commands
 
 ```bash
-./check.sh              # Run all checks (lint + mypy + tests)
-./check.sh -l           # Ruff linting only
+./check.sh              # All checks (lint + mypy + tests)
+./check.sh -l           # Ruff lint only
 ./check.sh -m           # Mypy only
 ./check.sh -t           # Tests only
 ./check.sh -c           # Tests with coverage
-./check.sh -f           # Auto-fix linting issues
+./check.sh -f           # Auto-fix lint
+./check.sh -a           # Explicitly run all checks
+./check.sh -h           # Show help
 ```
 
-## Architecture
+Run `check_thresholds` (scopewalker MCP tool) before committing to enforce
+file <300 / function <100 line limits.
 
-MCP server providing Jira Cloud integration for AI agents.
+## Key Files
 
-### Key Files
+- `src/server.py` — MCP entry point (FastMCP)
+- `src/config.py` — Configuration loading
+- `src/tools/` — Tool implementations (one file per tool group)
+- `src/jira/client.py` — Jira REST API v3 client
+- `src/jira/adf.py` — ADF ↔ plain text conversion
+- `src/utils/` — Validation and error handling
 
-- `API_REFERENCE.md` - Tool inputs/outputs, error codes, JQL patterns
-- `src/server.py` - MCP server entry point (FastMCP)
-- `src/config.py` - Configuration loading
-- `src/tools/` - Tool implementations
-- `src/jira/client.py` - Jira API client
-- `src/jira/adf.py` - ADF conversion utilities
-- `src/utils/` - Validation and error handling
+## Jira API Gotchas
 
-## Key Patterns
+These are non-obvious behaviors that cause real bugs:
 
-### Jira API
+- **Search is POST, not GET**: `POST /rest/api/3/search/jql`
+- **All queries must be bounded** — always include at least one filter
+  (project, assignee, date range, etc.)
+- **Date boundaries are exclusive at midnight**:
 
-- REST API v3 (`/rest/api/3/`)
-- Search: `POST /rest/api/3/search/jql` (not GET)
-- All queries must be "bounded" (include at least one filter)
+  ```python
+  # To include all of Jan 15:
+  jql = 'updated >= "2025-01-15" AND updated < "2025-01-16"'
+  # NOT: updated <= "2025-01-15" (only matches midnight)
+  ```
 
-### Date Handling
+- **ADF, not plain text**: Jira Cloud uses Atlassian Document Format for
+  descriptions/comments. Convert ADF → plain text when returning data,
+  plain text → ADF when creating. See `src/jira/adf.py`.
 
-Jira interprets dates as midnight. To include a full day:
+## Error Handling
 
-```python
-jql = 'updated >= "2025-01-15" AND updated < "2025-01-16"'
-# NOT: updated <= "2025-01-15" (only includes midnight)
-```
+Two-tier model: protocol errors (JSON-RPC) for invalid tool calls, execution
+errors (`isError: true`) for runtime failures.
+Full error code reference: `API_REFERENCE.md`.
 
-### Atlassian Document Format (ADF)
+## Refactoring Safety
 
-Jira Cloud uses ADF for descriptions and comments. See `src/jira/adf.py`.
-Convert ADF to plain text when returning data, plain text to ADF when
-creating issues.
+Before major refactoring:
 
-### Error Handling
-
-Structured error responses. See `API_REFERENCE.md` for error codes.
+1. `./check.sh -c` — verify test coverage on affected code
+2. If coverage is insufficient, **write tests first**
+3. After refactoring, `./check.sh -t` to confirm correctness
 
 ## Security
 
@@ -104,6 +78,5 @@ Structured error responses. See `API_REFERENCE.md` for error codes.
 
 ## Testing
 
-- Mock Jira API responses
-- Test error conditions
-- Never test against production Jira
+- Mock Jira API responses — never hit production Jira
+- Test error conditions, not just happy paths

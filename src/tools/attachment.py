@@ -24,7 +24,6 @@ def _validate_inputs(  # noqa: PLR0911
     Returns:
         Tuple of (normalized_key, normalized_att_id, out_path) or ErrorResponse.
     """
-    # Validate issue key
     if not issue_key or not issue_key.strip():
         return error_response(VALIDATION_ERROR, "Issue key is required")
     normalized_key = issue_key.strip().upper()
@@ -34,7 +33,6 @@ def _validate_inputs(  # noqa: PLR0911
             f"Invalid issue key format: '{normalized_key}'. Expected: PROJECT-123",
         )
 
-    # Validate attachment ID
     if not attachment_id or not attachment_id.strip():
         return error_response(VALIDATION_ERROR, "Attachment ID is required")
     normalized_att_id = attachment_id.strip()
@@ -44,7 +42,6 @@ def _validate_inputs(  # noqa: PLR0911
             f"Invalid attachment ID: '{normalized_att_id}'. Must be numeric.",
         )
 
-    # Validate output directory
     if not output_dir:
         out_path = Path.cwd()
     else:
@@ -80,13 +77,11 @@ async def download_attachment(
     Returns:
         Download result or error response.
     """
-    # Validate inputs
     validation_result = _validate_inputs(issue_key, attachment_id, output_dir)
     if isinstance(validation_result, dict):
         return validation_result
     normalized_key, normalized_att_id, out_path = validation_result
 
-    # Get configuration
     config = get_config(config_id)
     if not config:
         msg = f"Configuration '{config_id}' not found"
@@ -94,17 +89,15 @@ async def download_attachment(
             msg = "No configuration available"
         return error_response(CONFIG_NOT_FOUND, msg)
 
-    # First, get the issue to find the attachment filename
+    # Fetch the issue first to resolve the attachment filename from its metadata
     client = JiraClient(config)
     issue_result = await client.get_issue(
         normalized_key, include_comments=False, include_attachments=True
     )
 
-    # Check for error
     if isinstance(issue_result, dict) and issue_result.get("isError"):
         return issue_result
 
-    # Find the attachment
     attachments = issue_result.get("attachments", [])
     attachment_info = next(
         (att for att in attachments if att.get("id") == normalized_att_id),
@@ -119,7 +112,6 @@ async def download_attachment(
 
     filename = attachment_info.get("filename", "attachment")
 
-    # Download the attachment
     return await client.download_attachment(
         normalized_att_id,
         out_path,

@@ -9,7 +9,6 @@ from src.config import JiraConfig
 
 logger = logging.getLogger(__name__)
 
-# HTTP status codes
 HTTP_OK = 200
 HTTP_CREATED = 201
 HTTP_BAD_REQUEST = 400
@@ -17,13 +16,11 @@ HTTP_UNAUTHORIZED = 401
 HTTP_NOT_FOUND = 404
 HTTP_TOO_MANY_REQUESTS = 429
 
-# API paths
 API_BASE = "/rest/api/3"
 SEARCH_PATH = f"{API_BASE}/search/jql"
 ISSUE_PATH = f"{API_BASE}/issue"
 ATTACHMENT_PATH = f"{API_BASE}/attachment/content"
 
-# Default timeout in seconds
 DEFAULT_TIMEOUT = 30.0
 
 
@@ -63,7 +60,7 @@ class JiraClientBase:
 
     @staticmethod
     def _format_date(date_str: str | None) -> str | None:
-        """Format a date string (returns as-is for now)."""
+        """Return a Jira date string, or None if absent."""
         if not date_str:
             return None
         return date_str

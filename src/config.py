@@ -6,7 +6,6 @@ import os
 import sys
 from dataclasses import dataclass
 
-# Configure logging to stderr only (critical for MCP stdio transport)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
