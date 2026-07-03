@@ -96,18 +96,6 @@ def validate_limit(limit: int) -> bool:
     return MIN_LIMIT <= limit <= MAX_LIMIT
 
 
-def validate_start_at(start_at: int) -> bool:
-    """Validate a pagination start_at value.
-
-    Args:
-        start_at: The start_at value to validate.
-
-    Returns:
-        True if valid (>= 0), False otherwise.
-    """
-    return start_at >= 0
-
-
 def is_bounded_query(jql: str) -> bool:
     """Check if a JQL query has at least one bounding filter.
 

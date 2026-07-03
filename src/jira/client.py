@@ -47,7 +47,6 @@ class JiraClient:
         jql: str,
         *,
         max_results: int = 50,
-        start_at: int = 0,
         next_page_token: str | None = None,
         fields: list[str] | None = None,
     ) -> dict[str, Any] | ErrorResponse:
@@ -56,7 +55,6 @@ class JiraClient:
         Args:
             jql: JQL query string.
             max_results: Maximum results to return (1-100).
-            start_at: Deprecated - ignored by Jira API v3.
             next_page_token: Token for cursor-based pagination.
             fields: Fields to return in the response.
 
@@ -66,7 +64,6 @@ class JiraClient:
         params = SearchParams(
             jql=jql,
             max_results=max_results,
-            start_at=start_at,
             next_page_token=next_page_token,
             fields=fields if fields is not None else DEFAULT_SEARCH_FIELDS.copy(),
         )

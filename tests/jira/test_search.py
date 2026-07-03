@@ -1,7 +1,6 @@
 """Tests for JiraClient search operations."""
 
 import json
-import logging
 
 import httpx
 import pytest
@@ -184,22 +183,6 @@ async def test_search_bad_request_empty_error_messages(client, patch_async_clien
     assert result["isError"] is True
     assert result["error"]["code"] == "INVALID_JQL"
     assert result["error"]["message"] == "Invalid JQL query"
-
-
-@pytest.mark.asyncio
-async def test_search_with_start_at_logs_warning(client, patch_async_client, caplog):
-    """Test search logs warning when using deprecated start_at."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"total": 0, "maxResults": 50, "issues": []})
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    with caplog.at_level(logging.WARNING):
-        await client.search("project = ONE", start_at=10)
-
-    assert "start_at parameter is deprecated" in caplog.text
 
 
 @pytest.mark.asyncio

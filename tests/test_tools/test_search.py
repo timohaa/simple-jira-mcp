@@ -102,13 +102,6 @@ class TestSearchValidation:
         assert result["error"]["code"] == "VALIDATION_ERROR"
 
     @pytest.mark.asyncio
-    async def test_negative_start_at_returns_error(self, mock_config):
-        result = await search_issues("project = ONE", start_at=-1)
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "VALIDATION_ERROR"
-
-    @pytest.mark.asyncio
     async def test_invalid_field_returns_error(self, mock_config):
         result = await search_issues("project = ONE", fields=["summary", "unknown"])
 

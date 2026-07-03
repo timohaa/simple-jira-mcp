@@ -9,7 +9,6 @@ from src.utils.validation import (
     validate_limit,
     validate_project_key,
     validate_search_fields,
-    validate_start_at,
 )
 
 
@@ -100,17 +99,6 @@ class TestValidateLimit:
 
     def test_invalid_too_large(self):
         assert validate_limit(101) is False
-
-
-class TestValidateStartAt:
-    def test_valid_zero(self):
-        assert validate_start_at(0) is True
-
-    def test_valid_positive(self):
-        assert validate_start_at(100) is True
-
-    def test_invalid_negative(self):
-        assert validate_start_at(-1) is False
 
 
 class TestIsBoundedQuery:

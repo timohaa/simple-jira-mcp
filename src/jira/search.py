@@ -43,7 +43,6 @@ class SearchParams:
 
     jql: str
     max_results: int = 50
-    start_at: int = 0
     next_page_token: str | None = None
     fields: list[str] = field(default_factory=lambda: DEFAULT_SEARCH_FIELDS.copy())
 
@@ -65,11 +64,6 @@ class SearchOperation(JiraClientBase):
             getattr(self.config, "id", None),
             params.jql,
         )
-        if params.start_at != 0:
-            logger.warning(
-                "start_at parameter is deprecated and ignored by Jira API v3. "
-                "Use next_page_token for pagination."
-            )
 
         url = f"{self.base_url}{SEARCH_PATH}"
         payload: dict[str, Any] = {

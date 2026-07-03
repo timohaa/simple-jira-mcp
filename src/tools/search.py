@@ -15,7 +15,6 @@ from src.utils.validation import (
     is_bounded_query,
     validate_limit,
     validate_search_fields,
-    validate_start_at,
 )
 
 
@@ -43,7 +42,6 @@ def _validate_jql(jql: str) -> dict[str, Any] | None:
 def _validate_search_params(
     jql: str,
     limit: int,
-    start_at: int,
     fields: list[str] | None,
 ) -> dict[str, Any] | None:
     """Validate search parameters, returning error response or None if valid."""
@@ -53,9 +51,6 @@ def _validate_search_params(
 
     if not validate_limit(limit):
         return error_response(VALIDATION_ERROR, "Limit must be between 1 and 100")
-
-    if not validate_start_at(start_at):
-        return error_response(VALIDATION_ERROR, "start_at must be >= 0")
 
     if fields is not None:
         is_valid, invalid_field = validate_search_fields(fields)
@@ -72,7 +67,6 @@ async def search_issues(
     jql: str,
     config_id: str | None = None,
     limit: int = 50,
-    start_at: int = 0,
     next_page_token: str | None = None,
     fields: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -82,14 +76,13 @@ async def search_issues(
         jql: JQL query string (must be bounded).
         config_id: Configuration ID to use.
         limit: Maximum results to return (1-100).
-        start_at: Deprecated - ignored by Jira API v3.
         next_page_token: Token for cursor-based pagination.
         fields: Specific fields to return.
 
     Returns:
         Search results or error response.
     """
-    validation_error = _validate_search_params(jql, limit, start_at, fields)
+    validation_error = _validate_search_params(jql, limit, fields)
     if validation_error:
         return validation_error
 
@@ -105,7 +98,6 @@ async def search_issues(
     return await client.search(
         jql,
         max_results=limit,
-        start_at=start_at,
         next_page_token=next_page_token,
         fields=fields,
     )
