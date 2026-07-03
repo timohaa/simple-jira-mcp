@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-03
+
+### Changed
+
+- Reduced MCP tool schema token usage by ~50%
+- Refactored issue creation to use a params object and improved ADF text
+  conversion
+
+### Removed
+
+- Deprecated `start_at` parameter from `search_issues` (use token-based
+  pagination instead)
+
 ## [0.1.0] - 2025-12-08
 
 ### Added
