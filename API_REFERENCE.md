@@ -15,8 +15,8 @@ Authoritative reference for the Jira MCP tools.
 - Inputs: `jql` (required, must include a filter), `config_id` (optional),
   `limit` 1-100 (default 50), `next_page_token` (cursor pagination),
   `fields` allowlist forwarded to Jira.
-  `start_at` is accepted but deprecated and ignored by Jira API v3; use
-  `next_page_token` for pagination instead.
+  Pagination is cursor-based via `next_page_token` (Jira API v3 does not
+  support offset pagination).
 - Returns: `{"total": int, "max_results": int, "issues": [...],
   "next_page_token": str?}`.
   Issues are normalized to key, summary, status, assignee, priority, issue_type,
@@ -59,21 +59,21 @@ Authoritative reference for the Jira MCP tools.
 
 ## Error Codes
 
-| Code | Description |
-| --- | --- |
-| `AUTH_FAILED` | Invalid credentials |
-| `CONFIG_NOT_FOUND` | Unknown config_id or missing config |
-| `ISSUE_NOT_FOUND` | Issue key does not exist |
-| `PROJECT_NOT_FOUND` | Project key does not exist |
-| `ATTACHMENT_NOT_FOUND` | Attachment ID not found on issue |
-| `INVALID_JQL` | Malformed JQL |
-| `UNBOUNDED_QUERY` | Query lacks required filters |
-| `INVALID_ISSUE_TYPE` | Issue type not available in project |
-| `INVALID_PRIORITY` | Priority not recognized |
-| `VALIDATION_ERROR` | Input validation failure |
-| `DOWNLOAD_FAILED` | Attachment download failed |
-| `RATE_LIMITED` | Jira API rate limit exceeded |
-| `JIRA_ERROR` | Unexpected Jira error |
+| Code                   | Description                         |
+|------------------------|-------------------------------------|
+| `AUTH_FAILED`          | Invalid credentials                 |
+| `CONFIG_NOT_FOUND`     | Unknown config_id or missing config |
+| `ISSUE_NOT_FOUND`      | Issue key does not exist            |
+| `PROJECT_NOT_FOUND`    | Project key does not exist          |
+| `ATTACHMENT_NOT_FOUND` | Attachment ID not found on issue    |
+| `INVALID_JQL`          | Malformed JQL                       |
+| `UNBOUNDED_QUERY`      | Query lacks required filters        |
+| `INVALID_ISSUE_TYPE`   | Issue type not available in project |
+| `INVALID_PRIORITY`     | Priority not recognized             |
+| `VALIDATION_ERROR`     | Input validation failure            |
+| `DOWNLOAD_FAILED`      | Attachment download failed          |
+| `RATE_LIMITED`         | Jira API rate limit exceeded        |
+| `JIRA_ERROR`           | Unexpected Jira error               |
 
 ## Validation Notes
 

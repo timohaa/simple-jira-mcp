@@ -29,6 +29,20 @@ Use `stderr` via the `logging` module for all diagnostics.
 Run `check_thresholds` (scopewalker MCP tool) before committing to enforce
 file <300 / function <100 line limits.
 
+## Behavior
+
+- **Minimum footprint.** Write the minimum code that solves the problem —
+  no speculative abstractions, no drive-by renames, no unrelated cleanup
+  bundled into the same change.
+- **Verify, don't trust.** `./check.sh` passing is necessary but not
+  sufficient — read a tool's tests to confirm its actual behavior.
+- **Never create `_enhanced`, `_v2`, or `_new` duplicate file variants** —
+  edit the original file.
+
+Prefer LSP over Grep/Read for code navigation (`workspaceSymbol`,
+`findReferences`, `goToDefinition`, `hover`). Use Grep only for text/pattern
+searches.
+
 ## Key Files
 
 - `src/server.py` — MCP entry point (FastMCP)
