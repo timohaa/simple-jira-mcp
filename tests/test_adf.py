@@ -32,7 +32,26 @@ class TestAdfToText:
                 },
             ],
         }
-        assert adf_to_text(adf) == "First Second"
+        assert adf_to_text(adf) == "First\n\nSecond"
+
+    def test_marks_do_not_split_words(self):
+        # Bold mid-word splits the text into adjacent nodes; no spaces
+        # may be inserted at the seams.
+        adf = {
+            "type": "doc",
+            "version": 1,
+            "content": [
+                {
+                    "type": "paragraph",
+                    "content": [
+                        {"type": "text", "text": "he"},
+                        {"type": "text", "text": "ll", "marks": [{"type": "strong"}]},
+                        {"type": "text", "text": "o"},
+                    ],
+                }
+            ],
+        }
+        assert adf_to_text(adf) == "hello"
 
     def test_with_hard_break(self):
         adf = {
@@ -49,9 +68,7 @@ class TestAdfToText:
                 }
             ],
         }
-        result = adf_to_text(adf)
-        assert "Line 1" in result
-        assert "Line 2" in result
+        assert adf_to_text(adf) == "Line 1\nLine 2"
 
     def test_empty_adf(self):
         assert adf_to_text({}) == ""
@@ -91,9 +108,7 @@ class TestAdfToText:
                 }
             ],
         }
-        result = adf_to_text(adf)
-        assert "Item 1" in result
-        assert "Item 2" in result
+        assert adf_to_text(adf) == "Item 1\n\nItem 2"
 
 
 class TestTextToAdf:
@@ -134,6 +149,9 @@ class TestTextToAdf:
     def test_roundtrip_paragraphs(self):
         original = "Para 1\n\nPara 2"
         adf = text_to_adf(original)
-        result = adf_to_text(adf)
-        assert "Para 1" in result
-        assert "Para 2" in result
+        assert adf_to_text(adf) == original
+
+    def test_roundtrip_single_newlines(self):
+        original = "Line 1\nLine 2"
+        adf = text_to_adf(original)
+        assert adf_to_text(adf) == original
