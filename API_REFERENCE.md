@@ -17,10 +17,13 @@ Authoritative reference for the Jira MCP tools.
   `fields` allowlist forwarded to Jira.
   Pagination is cursor-based via `next_page_token` (Jira API v3 does not
   support offset pagination).
-- Returns: `{"total": int, "max_results": int, "issues": [...],
-  "next_page_token": str?}`.
-  Issues are normalized to key, summary, status, assignee, priority, issue_type,
-  labels, created, updated, url.
+- Returns: `{"issues": [...], "is_last": bool, "next_page_token": str?}`.
+  The Jira `/search/jql` endpoint provides no total count; use `is_last` /
+  `next_page_token` to paginate.
+  Issues always include `key` and `url` plus the requested fields (default:
+  summary, status, assignee, priority, updated, created, labels, issue_type).
+  Requesting `comment` or `attachment` yields `comments` / `attachments`
+  in the same shape as get_issue.
 - Errors: `INVALID_JQL`, `UNBOUNDED_QUERY`, `VALIDATION_ERROR`, `AUTH_FAILED`,
   `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
 

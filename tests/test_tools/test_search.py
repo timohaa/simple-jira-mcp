@@ -133,8 +133,7 @@ class TestSearchIntegration:
             return httpx.Response(
                 200,
                 json={
-                    "total": 1,
-                    "maxResults": 50,
+                    "isLast": False,
                     "nextPageToken": "next",
                     "issues": [
                         {
@@ -159,7 +158,7 @@ class TestSearchIntegration:
 
         result = await search_issues("project = ONE")
 
-        assert result["total"] == 1
+        assert result["is_last"] is False
         assert result["issues"][0]["key"] == "ONE-1"
         assert result["issues"][0]["status"] == "In Progress"
         assert result["next_page_token"] == "next"
@@ -173,7 +172,7 @@ class TestSearchIntegration:
             assert payload["maxResults"] == 25
             assert payload["nextPageToken"] == "token"
             assert payload["fields"] == ["summary", "status"]
-            response_data = {"total": 0, "maxResults": 25, "issues": []}
+            response_data = {"isLast": True, "issues": []}
             return httpx.Response(200, json=response_data)
 
         transport = httpx.MockTransport(handler)
@@ -186,7 +185,8 @@ class TestSearchIntegration:
             fields=["summary", "status"],
         )
 
-        assert result["total"] == 0
+        assert result["is_last"] is True
+        assert result["issues"] == []
 
     @pytest.mark.asyncio
     async def test_search_integration_auth_failed(

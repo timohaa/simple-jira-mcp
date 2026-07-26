@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from src.config import JiraConfig
+from src.jira.adf import adf_to_text
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +60,46 @@ class JiraClientBase:
         return None
 
     @staticmethod
+    def _extract_key(obj: dict[str, Any] | None) -> str | None:
+        """Extract 'key' field from a Jira object."""
+        if obj and isinstance(obj, dict):
+            return obj.get("key")
+        return None
+
+    @staticmethod
     def _format_date(date_str: str | None) -> str | None:
         """Return a Jira date string, or None if absent."""
         if not date_str:
             return None
         return date_str
+
+    def _extract_comments(self, comment_data: dict[str, Any]) -> list[dict[str, Any]]:
+        """Extract comments from issue data."""
+        comments = []
+        for comment in comment_data.get("comments", []):
+            comments.append(
+                {
+                    "author": self._extract_display_name(comment.get("author")),
+                    "created": comment.get("created"),
+                    "body": adf_to_text(comment.get("body")),
+                }
+            )
+        return comments
+
+    def _extract_attachments(
+        self, attachment_data: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Extract attachment metadata from issue data."""
+        attachments = []
+        for att in attachment_data:
+            size_bytes = att.get("size", 0)
+            attachments.append(
+                {
+                    "id": str(att.get("id")),
+                    "filename": att.get("filename"),
+                    "size_kb": round(size_bytes / 1024, 2),
+                    "mime_type": att.get("mimeType"),
+                    "created": self._format_date(att.get("created")),
+                }
+            )
+        return attachments

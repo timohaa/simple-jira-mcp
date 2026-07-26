@@ -16,8 +16,7 @@ async def test_search_sends_payload_and_transforms(client, patch_async_client):
         recorded["url"] = str(request.url)
         recorded["json"] = json.loads(request.content.decode())
         response_body = {
-            "total": 1,
-            "maxResults": 50,
+            "isLast": True,
             "issues": [
                 {
                     "key": "ONE-123",
@@ -55,10 +54,99 @@ async def test_search_sends_payload_and_transforms(client, patch_async_client):
         "labels",
         "issuetype",
     ]
+    assert result["is_last"] is True
+    assert "total" not in result
     issue = result["issues"][0]
     assert issue["key"] == "ONE-123"
     assert issue["summary"] == "Search result"
     assert issue["assignee"] == "Jane"
+    assert issue["issue_type"] == "Task"
+
+
+@pytest.mark.asyncio
+async def test_search_returns_requested_fields(client, patch_async_client):
+    """Test search output includes non-default requested fields."""
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        response_body = {
+            "isLast": True,
+            "issues": [
+                {
+                    "key": "ONE-123",
+                    "fields": {
+                        "summary": "Search result",
+                        "description": {
+                            "type": "doc",
+                            "content": [
+                                {
+                                    "type": "paragraph",
+                                    "content": [
+                                        {"type": "text", "text": "Details here"}
+                                    ],
+                                }
+                            ],
+                        },
+                        "reporter": {"displayName": "Reporter"},
+                        "resolution": {"name": "Fixed"},
+                        "project": {"key": "ONE", "name": "Project One"},
+                        "comment": {
+                            "comments": [
+                                {
+                                    "author": {"displayName": "Commenter"},
+                                    "created": "2025-01-03",
+                                    "body": {
+                                        "type": "doc",
+                                        "content": [
+                                            {
+                                                "type": "paragraph",
+                                                "content": [
+                                                    {"type": "text", "text": "Hi"}
+                                                ],
+                                            }
+                                        ],
+                                    },
+                                }
+                            ]
+                        },
+                        "attachment": [
+                            {
+                                "id": "9",
+                                "filename": "file.txt",
+                                "size": 2048,
+                                "mimeType": "text/plain",
+                                "created": "2025-01-04",
+                            }
+                        ],
+                    },
+                }
+            ],
+        }
+        return httpx.Response(200, json=response_body)
+
+    transport = httpx.MockTransport(handler)
+    patch_async_client(transport)
+
+    requested = [
+        "summary",
+        "description",
+        "reporter",
+        "resolution",
+        "project",
+        "comment",
+        "attachment",
+    ]
+    result = await client.search("project = ONE", fields=requested)
+
+    issue = result["issues"][0]
+    assert issue["description"] == "Details here"
+    assert issue["reporter"] == "Reporter"
+    assert issue["resolution"] == "Fixed"
+    assert issue["project"] == "ONE"
+    assert issue["comments"][0]["body"] == "Hi"
+    assert issue["attachments"][0]["filename"] == "file.txt"
+    # Fields that were not requested must not appear
+    assert "status" not in issue
+    assert "labels" not in issue
 
 
 @pytest.mark.asyncio
@@ -69,8 +157,7 @@ async def test_search_with_next_page_token(client, patch_async_client):
     async def handler(request: httpx.Request) -> httpx.Response:
         recorded["json"] = json.loads(request.content.decode())
         response_body = {
-            "total": 100,
-            "maxResults": 50,
+            "isLast": False,
             "nextPageToken": "token_page_2",
             "issues": [],
         }
@@ -83,6 +170,7 @@ async def test_search_with_next_page_token(client, patch_async_client):
 
     assert recorded["json"]["nextPageToken"] == "token_page_1"
     assert result["next_page_token"] == "token_page_2"
+    assert result["is_last"] is False
 
 
 @pytest.mark.asyncio

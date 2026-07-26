@@ -5,8 +5,8 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_get_issue_transforms_data_and_uses_expand(client, patch_async_client):
-    """Test get_issue transforms response and uses expand parameter."""
+async def test_get_issue_transforms_data(client, patch_async_client):
+    """Test get_issue transforms response data."""
     recorded: dict[str, object] = {}
 
     async def handler(request: httpx.Request) -> httpx.Response:
@@ -68,7 +68,7 @@ async def test_get_issue_transforms_data_and_uses_expand(client, patch_async_cli
 
     result = await client.get_issue("ONE-123")
 
-    assert "expand=renderedFields" in recorded["url"]
+    assert recorded["url"].endswith("/rest/api/3/issue/ONE-123")
     assert result["description"] == "Description text"
     assert result["comments"][0]["body"] == "Hi"
     attachment = result["attachments"][0]

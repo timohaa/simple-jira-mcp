@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx
 
+from src.jira.adf import adf_to_text
 from src.jira.base import (
     HTTP_BAD_REQUEST,
     HTTP_OK,
@@ -83,13 +84,13 @@ class SearchOperation(JiraClientBase):
                     json=payload,
                     auth=self._get_auth(),
                 )
-                return self._handle_response(response)
+                return self._handle_response(response, params.fields)
         except httpx.RequestError as e:
             logger.exception("Request failed for JQL search")
             return error_response(JIRA_ERROR, f"Request failed: {e}")
 
     def _handle_response(
-        self, response: httpx.Response
+        self, response: httpx.Response, requested_fields: list[str]
     ) -> dict[str, Any] | ErrorResponse:
         """Handle search response and transform to clean format."""
         if response.status_code == HTTP_UNAUTHORIZED:
@@ -109,36 +110,67 @@ class SearchOperation(JiraClientBase):
             return error_response(JIRA_ERROR, f"Jira API error: {response.status_code}")
 
         data = response.json()
-        return self._transform_results(data)
+        return self._transform_results(data, requested_fields)
 
-    def _transform_results(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Transform raw Jira search results to clean format."""
-        issues = []
-        for issue in data.get("issues", []):
-            fields = issue.get("fields", {})
-            issues.append(
-                {
-                    "key": issue.get("key"),
-                    "summary": fields.get("summary"),
-                    "status": self._extract_name(fields.get("status")),
-                    "assignee": self._extract_display_name(fields.get("assignee")),
-                    "priority": self._extract_name(fields.get("priority")),
-                    "issue_type": self._extract_name(fields.get("issuetype")),
-                    "labels": fields.get("labels", []),
-                    "created": self._format_date(fields.get("created")),
-                    "updated": self._format_date(fields.get("updated")),
-                    "url": f"{self.base_url}/browse/{issue.get('key')}",
-                }
-            )
+    def _transform_results(
+        self, data: dict[str, Any], requested_fields: list[str]
+    ) -> dict[str, Any]:
+        """Transform raw Jira search results to clean format.
+
+        The /search/jql endpoint has no total count; pagination state comes
+        from isLast and nextPageToken only.
+        """
+        issues = [
+            self._transform_issue(issue, requested_fields)
+            for issue in data.get("issues", [])
+        ]
 
         result: dict[str, Any] = {
-            "total": data.get("total", 0),
-            "max_results": data.get("maxResults", 50),
             "issues": issues,
+            "is_last": data.get("isLast", True),
         }
 
         next_token = data.get("nextPageToken")
         if next_token:
             result["next_page_token"] = next_token
 
+        return result
+
+    def _transform_issue(
+        self, issue: dict[str, Any], requested_fields: list[str]
+    ) -> dict[str, Any]:
+        """Transform one raw issue, emitting only the requested fields."""
+        fields = issue.get("fields", {})
+        extractors: dict[str, tuple[str, Any]] = {
+            "summary": ("summary", fields.get("summary")),
+            "status": ("status", self._extract_name(fields.get("status"))),
+            "assignee": (
+                "assignee",
+                self._extract_display_name(fields.get("assignee")),
+            ),
+            "reporter": (
+                "reporter",
+                self._extract_display_name(fields.get("reporter")),
+            ),
+            "priority": ("priority", self._extract_name(fields.get("priority"))),
+            "resolution": ("resolution", self._extract_name(fields.get("resolution"))),
+            "issuetype": ("issue_type", self._extract_name(fields.get("issuetype"))),
+            "labels": ("labels", fields.get("labels", [])),
+            "created": ("created", self._format_date(fields.get("created"))),
+            "updated": ("updated", self._format_date(fields.get("updated"))),
+            "description": ("description", adf_to_text(fields.get("description"))),
+            "comment": ("comments", self._extract_comments(fields.get("comment", {}))),
+            "attachment": (
+                "attachments",
+                self._extract_attachments(fields.get("attachment", [])),
+            ),
+            "project": ("project", self._extract_key(fields.get("project"))),
+        }
+
+        result: dict[str, Any] = {"key": issue.get("key")}
+        for name in requested_fields:
+            if name in extractors:
+                output_key, value = extractors[name]
+                result[output_key] = value
+        result["url"] = f"{self.base_url}/browse/{issue.get('key')}"
         return result
