@@ -180,3 +180,11 @@ class TestSanitizeFilename:
 
     def test_only_special_chars(self):
         assert sanitize_filename("///") == "attachment"
+
+    def test_dot_only_names_rejected(self):
+        assert sanitize_filename(".") == "attachment"
+        assert sanitize_filename("..") == "attachment"
+        assert sanitize_filename("...") == "attachment"
+
+    def test_hidden_file_preserved(self):
+        assert sanitize_filename(".gitignore") == ".gitignore"

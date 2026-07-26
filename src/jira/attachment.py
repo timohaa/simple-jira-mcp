@@ -51,9 +51,7 @@ class AttachmentOperation(JiraClientBase):
         url = f"{self.base_url}{ATTACHMENT_PATH}/{attachment_id}"
 
         safe_filename = sanitize_filename(filename)
-        target_dir = output_dir / issue_key
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target_path = target_dir / safe_filename
+        target_path = output_dir / issue_key / safe_filename
         logger.info(
             "Downloading attachment %s for issue %s to %s",
             attachment_id,
@@ -62,6 +60,7 @@ class AttachmentOperation(JiraClientBase):
         )
 
         try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
             async with self._create_client() as client:
                 response = await client.get(
                     url,
@@ -69,16 +68,9 @@ class AttachmentOperation(JiraClientBase):
                     follow_redirects=True,
                 )
 
-                if response.status_code == HTTP_UNAUTHORIZED:
-                    return error_response(AUTH_FAILED, "Invalid credentials")
-                if response.status_code == HTTP_NOT_FOUND:
-                    return error_response(ATTACHMENT_NOT_FOUND, "Attachment not found")
-                if response.status_code == HTTP_TOO_MANY_REQUESTS:
-                    return error_response(RATE_LIMITED, "Too many requests")
-                if response.status_code != HTTP_OK:
-                    return error_response(
-                        DOWNLOAD_FAILED, f"Download failed: {response.status_code}"
-                    )
+                status_error = self._get_status_error(response.status_code)
+                if status_error:
+                    return status_error
 
                 target_path.write_bytes(response.content)
 
@@ -98,3 +90,20 @@ class AttachmentOperation(JiraClientBase):
         except httpx.RequestError as e:
             logger.exception("Request failed for download_attachment")
             return error_response(DOWNLOAD_FAILED, f"Download failed: {e}")
+        except OSError as e:
+            logger.exception("File write failed for download_attachment")
+            return error_response(DOWNLOAD_FAILED, f"File write failed: {e}")
+
+    def _get_status_error(self, status_code: int) -> ErrorResponse | None:
+        """Return error response for non-OK status codes, or None."""
+        status_errors = {
+            HTTP_UNAUTHORIZED: (AUTH_FAILED, "Invalid credentials"),
+            HTTP_NOT_FOUND: (ATTACHMENT_NOT_FOUND, "Attachment not found"),
+            HTTP_TOO_MANY_REQUESTS: (RATE_LIMITED, "Too many requests"),
+        }
+        if status_code in status_errors:
+            code, msg = status_errors[status_code]
+            return error_response(code, msg)
+        if status_code != HTTP_OK:
+            return error_response(DOWNLOAD_FAILED, f"Download failed: {status_code}")
+        return None

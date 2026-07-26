@@ -110,7 +110,7 @@ async def download_attachment(
             f"Attachment '{normalized_att_id}' not found on issue '{normalized_key}'",
         )
 
-    filename = attachment_info.get("filename", "attachment")
+    filename = attachment_info.get("filename") or "attachment"
 
     return await client.download_attachment(
         normalized_att_id,

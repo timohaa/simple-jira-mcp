@@ -157,4 +157,8 @@ def sanitize_filename(filename: str) -> str:
     # paths like "C:\Users\...\file.txt" are handled the same as POSIX paths.
     safe = filename.replace("\\", "/").split("/")[-1]
     safe = re.sub(r'[:\x00<>"|?*]', "_", safe)
-    return safe.strip() or "attachment"
+    safe = safe.strip()
+    # Dot-only names ("." or "..") resolve to directories, not files
+    if not safe or not safe.strip("."):
+        return "attachment"
+    return safe

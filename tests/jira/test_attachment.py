@@ -40,6 +40,51 @@ async def test_download_attachment_sanitizes_filename(client, patch_async_client
 
 
 @pytest.mark.asyncio
+async def test_download_attachment_dot_only_filename(client, patch_async_client):
+    """Test dot-only filenames fall back to a safe name instead of a directory."""
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"data")
+
+    transport = httpx.MockTransport(handler)
+    patch_async_client(transport)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = await client.download_attachment(
+            "12345", Path(tmpdir), "ONE-123", filename=".."
+        )
+
+        saved_path = Path(result["path"])
+        assert saved_path.name == "attachment"
+        assert saved_path.parent == Path(tmpdir) / "ONE-123"
+        assert saved_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_download_attachment_write_failure_returns_error(
+    client, patch_async_client
+):
+    """Test filesystem errors produce a clean error response, not a crash."""
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"data")
+
+    transport = httpx.MockTransport(handler)
+    patch_async_client(transport)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Occupy the target path with a directory so write_bytes fails
+        (Path(tmpdir) / "ONE-123" / "file.txt").mkdir(parents=True)
+        result = await client.download_attachment(
+            "12345", Path(tmpdir), "ONE-123", "file.txt"
+        )
+
+    assert result["isError"] is True
+    assert result["error"]["code"] == "DOWNLOAD_FAILED"
+    assert "File write failed" in result["error"]["message"]
+
+
+@pytest.mark.asyncio
 async def test_download_attachment_auth_failed_error(client, patch_async_client):
     """Test download_attachment returns error on authentication failure."""
 

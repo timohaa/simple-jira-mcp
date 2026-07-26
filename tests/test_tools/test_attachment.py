@@ -173,6 +173,31 @@ class TestDownloadAttachmentSuccess:
         mock_get.assert_called_once()
         assert mock_get.call_args.args[0] == "ONE-123"
 
+    @pytest.mark.asyncio
+    async def test_none_filename_falls_back_to_default(self, mock_config, temp_dir):
+        issue_response = {
+            "key": "ONE-123",
+            "attachments": [
+                {"id": "12345", "filename": None},
+            ],
+        }
+
+        with (
+            patch(
+                "src.tools.attachment.JiraClient.get_issue", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "src.tools.attachment.JiraClient.download_attachment",
+                new_callable=AsyncMock,
+            ) as mock_download,
+        ):
+            mock_get.return_value = issue_response
+            mock_download.return_value = {"success": True, "filename": "attachment"}
+            result = await download_attachment("ONE-123", "12345", output_dir=temp_dir)
+
+        assert result["success"] is True
+        assert mock_download.call_args.args[3] == "attachment"
+
 
 class TestDownloadAttachmentApiErrors:
     @pytest.mark.asyncio
