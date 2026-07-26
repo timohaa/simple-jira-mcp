@@ -125,12 +125,15 @@ class SearchOperation(JiraClientBase):
             for issue in data.get("issues", [])
         ]
 
+        next_token = data.get("nextPageToken")
+
+        # Fall back to the token when isLast is absent: reporting is_last=True
+        # alongside a valid token would make clients silently truncate results.
         result: dict[str, Any] = {
             "issues": issues,
-            "is_last": data.get("isLast", True),
+            "is_last": data.get("isLast", next_token is None),
         }
 
-        next_token = data.get("nextPageToken")
         if next_token:
             result["next_page_token"] = next_token
 

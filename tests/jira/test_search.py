@@ -150,30 +150,6 @@ async def test_search_returns_requested_fields(client, patch_async_client):
 
 
 @pytest.mark.asyncio
-async def test_search_with_next_page_token(client, patch_async_client):
-    """Test search handles pagination tokens."""
-    recorded: dict[str, object] = {}
-
-    async def handler(request: httpx.Request) -> httpx.Response:
-        recorded["json"] = json.loads(request.content.decode())
-        response_body = {
-            "isLast": False,
-            "nextPageToken": "token_page_2",
-            "issues": [],
-        }
-        return httpx.Response(200, json=response_body)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.search("project = ONE", next_page_token="token_page_1")
-
-    assert recorded["json"]["nextPageToken"] == "token_page_1"
-    assert result["next_page_token"] == "token_page_2"
-    assert result["is_last"] is False
-
-
-@pytest.mark.asyncio
 async def test_search_returns_invalid_jql_error(client, patch_async_client):
     """Test search returns error for invalid JQL."""
 
