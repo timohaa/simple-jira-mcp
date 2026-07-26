@@ -159,6 +159,12 @@ class TestValidateSearchFields:
         assert valid is False
         assert invalid == "hack"
 
+    def test_rejects_key(self):
+        # key is always returned, so selecting it is not meaningful
+        valid, invalid = validate_search_fields(["key"])
+        assert valid is False
+        assert invalid == "key"
+
 
 class TestSanitizeFilename:
     def test_normal_filename(self):

@@ -26,7 +26,6 @@ ALLOWED_SEARCH_FIELDS = frozenset(
         "comment",
         "attachment",
         "project",
-        "key",
     ]
 )
 
@@ -112,9 +111,8 @@ def is_bounded_query(jql: str) -> bool:
     # Keywords inside quoted strings or the ORDER BY clause don't bound the
     # result set, so strip both before matching.
     jql_lower = re.sub(r'"[^"]*"|\'[^\']*\'', " ", jql_lower)
-    jql_lower = re.sub(r"order\s+by.*", " ", jql_lower)
-    # Match whole words only using word boundaries
-    return any(re.search(rf"{keyword}", jql_lower) for keyword in BOUNDING_KEYWORDS)
+    jql_lower = re.sub(r"\border\s+by\b.*", " ", jql_lower)
+    return any(re.search(rf"\b{keyword}\b", jql_lower) for keyword in BOUNDING_KEYWORDS)
 
 
 def has_disallowed_jql_chars(jql: str) -> bool:
