@@ -109,8 +109,12 @@ def is_bounded_query(jql: str) -> bool:
         True if the query is bounded, False otherwise.
     """
     jql_lower = jql.lower()
+    # Keywords inside quoted strings or the ORDER BY clause don't bound the
+    # result set, so strip both before matching.
+    jql_lower = re.sub(r'"[^"]*"|\'[^\']*\'', " ", jql_lower)
+    jql_lower = re.sub(r"order\s+by.*", " ", jql_lower)
     # Match whole words only using word boundaries
-    return any(re.search(rf"\b{keyword}\b", jql_lower) for keyword in BOUNDING_KEYWORDS)
+    return any(re.search(rf"{keyword}", jql_lower) for keyword in BOUNDING_KEYWORDS)
 
 
 def has_disallowed_jql_chars(jql: str) -> bool:

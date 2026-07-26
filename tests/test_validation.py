@@ -127,6 +127,15 @@ class TestIsBoundedQuery:
     def test_case_insensitive(self):
         assert is_bounded_query("PROJECT = ONE") is True
 
+    def test_unbounded_order_by_only(self):
+        assert is_bounded_query('text ~ "foo" ORDER BY created') is False
+
+    def test_unbounded_keyword_in_quotes(self):
+        assert is_bounded_query('text ~ "project status"') is False
+
+    def test_bounded_with_order_by(self):
+        assert is_bounded_query("project = ONE ORDER BY created DESC") is True
+
 
 class TestJqlSafety:
     def test_disallows_semicolon(self):
