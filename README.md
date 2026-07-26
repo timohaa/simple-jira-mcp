@@ -19,7 +19,7 @@ for AI agents.
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/simple-jira-mcp.git
+git clone https://github.com/timohaa/simple-jira-mcp.git
 cd simple-jira-mcp
 python -m venv venv
 
@@ -53,11 +53,11 @@ Generate an API token at: <https://id.atlassian.com/manage-profile/security/api-
 
 ### Claude Desktop
 
-| Platform | Config Path |
-|----------|-------------|
-| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Linux | `~/.config/Claude/claude_desktop_config.json` |
-| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Platform | Config Path                                                       |
+|----------|-------------------------------------------------------------------|
+| macOS    | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Linux    | `~/.config/Claude/claude_desktop_config.json`                     |
+| Windows  | `%APPDATA%\Claude\claude_desktop_config.json`                     |
 
 ```json
 {
@@ -132,10 +132,10 @@ JIRA_CONFIG_JSON = '[{"id": "work", "url": "https://your-domain.atlassian.net", 
 
 ### Cursor
 
-| Scope | Config Path |
-|-------|-------------|
-| Global | `~/.cursor/mcp.json` |
-| Project | `.cursor/mcp.json` |
+| Scope   | Config Path          |
+|---------|----------------------|
+| Global  | `~/.cursor/mcp.json` |
+| Project | `.cursor/mcp.json`   |
 
 ```json
 {
@@ -156,10 +156,10 @@ Access via Cursor Settings > MCP.
 
 ### Windsurf (Codeium)
 
-| Platform | Config Path |
-|----------|-------------|
-| macOS/Linux | `~/.codeium/windsurf/mcp_config.json` |
-| Windows | `%USERPROFILE%\.codeium\windsurf\mcp_config.json` |
+| Platform    | Config Path                                       |
+|-------------|---------------------------------------------------|
+| macOS/Linux | `~/.codeium/windsurf/mcp_config.json`             |
+| Windows     | `%USERPROFILE%\.codeium\windsurf\mcp_config.json` |
 
 ```json
 {
@@ -234,12 +234,12 @@ On Windows, use full paths with backslashes:
 
 ## Available Tools
 
-| Tool | Description |
-|------|-------------|
-| `list_configs` | List available Jira configurations |
-| `search_issues` | Search issues using JQL |
-| `get_issue` | Get detailed issue information |
-| `create_issue` | Create a new issue |
+| Tool                  | Description                          |
+|-----------------------|--------------------------------------|
+| `list_configs`        | List available Jira configurations   |
+| `search_issues`       | Search issues using JQL              |
+| `get_issue`           | Get detailed issue information       |
+| `create_issue`        | Create a new issue                   |
 | `download_attachment` | Download an attachment from an issue |
 
 ## Usage Notes
@@ -248,16 +248,19 @@ On Windows, use full paths with backslashes:
   in `JIRA_CONFIG_JSON`.
 - `search_issues`: JQL must include at least one bounding filter;
   semicolons and newlines are rejected. Supports cursor pagination with
-  `next_page_token`. The `fields` allowlist is forwarded to Jira to limit
-  fetched data, but responses stay normalized to key, summary, status,
-  assignee, priority, issue_type, labels, created, updated, url.
+  `next_page_token` and `is_last` (the Jira `/search/jql` endpoint returns
+  no total count). The optional `fields` allowlist is forwarded to Jira and
+  drives the response shape: each issue contains `key`, `url`, and only the
+  requested fields. Default fields are summary, status, assignee, priority,
+  updated, created, labels, issuetype.
 - `get_issue`: `include_comments` and `include_attachments` toggle those
   sections. Descriptions and comments are plain text; attachments include
   `size_kb` and `mime_type`.
 - `create_issue`: Summary max 255 characters; description is converted to
   ADF; optional `priority`, `labels`, and `assignee_account_id`.
-- `download_attachment`: `output_dir` must exist when provided; files are
-  saved to `<output_dir>/<issue_key>/` with sanitized filenames.
+- `download_attachment`: `output_dir` must exist when provided (defaults to
+  the current working directory); files are saved to
+  `<output_dir>/<issue_key>/` with sanitized filenames.
 
 ## Reference
 

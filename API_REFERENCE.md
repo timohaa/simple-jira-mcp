@@ -14,16 +14,24 @@ Authoritative reference for the Jira MCP tools.
 - Purpose: Run bounded JQL queries (semicolon and newline are rejected).
 - Inputs: `jql` (required, must include a filter), `config_id` (optional),
   `limit` 1-100 (default 50), `next_page_token` (cursor pagination),
-  `fields` allowlist forwarded to Jira.
+  `fields` (optional allowlist, forwarded to Jira as the requested fields).
   Pagination is cursor-based via `next_page_token` (Jira API v3 does not
   support offset pagination).
+- Allowed `fields` values: `summary`, `status`, `assignee`, `reporter`,
+  `priority`, `resolution`, `issuetype`, `labels`, `created`, `updated`,
+  `description`, `comment`, `attachment`, `project`. Any other value
+  returns `VALIDATION_ERROR`. `key` is not selectable — it is always
+  returned. When `fields` is omitted the default set is
+  `summary`, `status`, `assignee`, `priority`, `updated`, `created`,
+  `labels`, `issuetype`.
 - Returns: `{"issues": [...], "is_last": bool, "next_page_token": str?}`.
   The Jira `/search/jql` endpoint provides no total count; use `is_last` /
   `next_page_token` to paginate.
-  Issues always include `key` and `url` plus the requested fields (default:
-  summary, status, assignee, priority, updated, created, labels, issue_type).
-  Requesting `comment` or `attachment` yields `comments` / `attachments`
-  in the same shape as get_issue.
+  Each issue contains `key`, `url`, and only the requested fields — the
+  response shape follows `fields`. A few output keys are renamed:
+  `issuetype` → `issue_type`, `comment` → `comments`, `attachment` →
+  `attachments`; `project` returns the project key. `comments` and
+  `attachments` use the same shape as get_issue.
 - Errors: `INVALID_JQL`, `UNBOUNDED_QUERY`, `VALIDATION_ERROR`, `AUTH_FAILED`,
   `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
 
@@ -54,11 +62,15 @@ Authoritative reference for the Jira MCP tools.
 - Purpose: Download an attachment to disk.
 - Inputs: `issue_key` (PROJECT-123), `attachment_id` (numeric string),
   `output_dir` (must exist when provided, defaults to CWD), `config_id` (optional).
-- Behavior: Saves to `<output_dir>/<issue_key>/<sanitized filename>`.
+- Behavior: Resolves the filename from the issue's attachment metadata, then
+  saves to `<output_dir>/<issue_key>/<sanitized filename>`, creating the
+  `<issue_key>` subdirectory if needed.
 - Returns: `{"success": true, "filename": str, "path": str, "size_kb": float,
-  "mime_type": str}`.
-- Errors: `ATTACHMENT_NOT_FOUND`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
-  `DOWNLOAD_FAILED`, `VALIDATION_ERROR`, `RATE_LIMITED`, `JIRA_ERROR`.
+  "mime_type": str}`. `filename` is the sanitized name and `mime_type` comes
+  from the download response's `content-type` header.
+- Errors: `ATTACHMENT_NOT_FOUND`, `ISSUE_NOT_FOUND`, `AUTH_FAILED`,
+  `CONFIG_NOT_FOUND`, `DOWNLOAD_FAILED`, `VALIDATION_ERROR`, `RATE_LIMITED`,
+  `JIRA_ERROR`.
 
 ## Error Codes
 
@@ -80,12 +92,21 @@ Authoritative reference for the Jira MCP tools.
 
 ## Validation Notes
 
-- JQL must include at least one bounding filter; semicolons and newlines are rejected.
+- JQL must include at least one bounding filter; semicolons and newlines are
+  rejected.
+- Bounding keywords: `project`, `assignee`, `reporter`, `created`, `updated`,
+  `resolved`, `status`, `type`, `issuetype`, `priority`, `key`, `id`. They are
+  matched as whole words outside quoted strings and outside the `ORDER BY`
+  clause, so `text ~ "project plan" ORDER BY created` is still unbounded.
 - `limit` must be 1-100.
-- `issue_key` pattern: `^[A-Z][A-Z0-9]+-\\d+$`;
-  `project_key`: `^[A-Z][A-Z0-9]+$`.
+- `issue_key` pattern: `^[A-Z][A-Z0-9]+-\d+$`;
+  `project_key`: `^[A-Z][A-Z0-9]+$`. Both are trimmed and upper-cased first.
 - `attachment_id` must be numeric.
-- `output_dir` must exist when provided; filenames are sanitized before writing.
+- `output_dir` must exist and be a directory when provided; when omitted the
+  current working directory is used.
+- Filenames are sanitized before writing: any directory component (`/` or `\`)
+  is dropped, `: < > " | ? *` and NUL become `_`, and empty or dot-only names
+  fall back to `attachment`.
 
 ## Common JQL Patterns
 

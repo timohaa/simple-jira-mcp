@@ -1,11 +1,30 @@
 # Changelog
 
+<!-- markdownlint-disable MD024 -->
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Changed
+
+- `search_issues` responses are now field-driven: each issue contains `key`,
+  `url`, and only the requested `fields` (previously a fixed set of keys)
+- ADF-to-text conversion joins adjacent inline nodes without inserting spaces
+  (formatting marks no longer split words) and separates block nodes with
+  blank lines instead of single spaces
+
+### Fixed
+
+- JQL bound checks match bounding keywords as whole words and ignore matches
+  inside quoted strings and the `ORDER BY` clause
+- Attachment filename sanitization strips Windows-style path separators and
+  rejects dot-only names (`.`, `..`), falling back to `attachment`
+- Attachment downloads report file-write failures as `DOWNLOAD_FAILED`
+  instead of raising
 
 ## [0.2.0] - 2026-07-03
 
