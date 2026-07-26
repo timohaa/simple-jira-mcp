@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "simple-jira-mcp"
 version = "0.2.0"
@@ -16,6 +20,12 @@ dev = [
     "mypy",
     "ruff",
 ]
+
+# `src` is the importable package name (imports are `from src.jira import ...`),
+# so discovery must not treat this as a src-layout project.
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
 
 [tool.mypy]
 python_version = "3.11"

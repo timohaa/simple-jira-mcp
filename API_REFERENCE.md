@@ -42,7 +42,8 @@ Authoritative reference for the Jira MCP tools.
   `include_comments` (default true), `include_attachments` (default true).
 - Returns: Plain-text summary/description, reporter/assignee, status, priority,
   issue_type, labels, created/updated/resolved dates, url, optional `comments`
-  and `attachments` with `size_kb` and `mime_type`.
+  (`author`, `created`, `body`) and `attachments` (`id`, `filename`, `size_kb`,
+  `mime_type`, `created`). Pass an attachment `id` to `download_attachment`.
 - Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
   `RATE_LIMITED`, `JIRA_ERROR`.
 

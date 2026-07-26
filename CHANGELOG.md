@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ADF-to-text conversion joins adjacent inline nodes without inserting spaces
   (formatting marks no longer split words) and separates block nodes with
   blank lines instead of single spaces
+- `key` is no longer selectable in `search_issues` `fields` — it is always
+  returned, and requesting it now returns `VALIDATION_ERROR`
+- The package installs as `src` rather than exposing `jira`, `tools`, and
+  `utils` as top-level modules, so `python -m src` works outside the
+  project directory
 
 ### Fixed
 
@@ -25,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rejects dot-only names (`.`, `..`), falling back to `attachment`
 - Attachment downloads report file-write failures as `DOWNLOAD_FAILED`
   instead of raising
+- `search_issues` derives `is_last` from `next_page_token` when Jira omits
+  `isLast`, so clients no longer stop paginating while a page remains
 
 ## [0.2.0] - 2026-07-03
 

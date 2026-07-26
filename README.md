@@ -51,6 +51,11 @@ Generate an API token at: <https://id.atlassian.com/manage-profile/security/api-
 
 ## AI Tool Integration
 
+In every snippet below, replace `/path/to/simple-jira-mcp` with your checkout
+path. The `command` must be the venv interpreter created during installation —
+a bare `python` only works if the ambient interpreter already has `mcp` and
+`httpx` installed.
+
 ### Claude Desktop
 
 | Platform | Config Path                                                       |
@@ -63,7 +68,7 @@ Generate an API token at: <https://id.atlassian.com/manage-profile/security/api-
 {
   "mcpServers": {
     "jira": {
-      "command": "python",
+      "command": "/path/to/simple-jira-mcp/venv/bin/python",
       "args": ["-m", "src"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
@@ -82,7 +87,7 @@ Edit `~/.claude.json`:
 {
   "mcpServers": {
     "jira": {
-      "command": "python",
+      "command": "/path/to/simple-jira-mcp/venv/bin/python",
       "args": ["-m", "src"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
@@ -103,7 +108,7 @@ Config file: `~/.gemini/settings.json`
 {
   "mcpServers": {
     "jira": {
-      "command": "python",
+      "command": "/path/to/simple-jira-mcp/venv/bin/python",
       "args": ["-m", "src"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
@@ -122,7 +127,7 @@ Config file: `~/.codex/config.toml`
 
 ```toml
 [mcp_servers.jira]
-command = "python"
+command = "/path/to/simple-jira-mcp/venv/bin/python"
 args = ["-m", "src"]
 cwd = "/path/to/simple-jira-mcp"
 
@@ -141,7 +146,7 @@ JIRA_CONFIG_JSON = '[{"id": "work", "url": "https://your-domain.atlassian.net", 
 {
   "mcpServers": {
     "jira": {
-      "command": "python",
+      "command": "/path/to/simple-jira-mcp/venv/bin/python",
       "args": ["-m", "src"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
@@ -165,7 +170,7 @@ Access via Cursor Settings > MCP.
 {
   "mcpServers": {
     "jira": {
-      "command": "python",
+      "command": "/path/to/simple-jira-mcp/venv/bin/python",
       "args": ["-m", "src"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
@@ -186,7 +191,7 @@ Config file: `.vscode/mcp.json` (project-level)
 {
   "servers": {
     "jira": {
-      "command": "python",
+      "command": "/path/to/simple-jira-mcp/venv/bin/python",
       "args": ["-m", "src"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
@@ -207,8 +212,7 @@ Add to Zed `settings.json`:
 {
   "context_servers": {
     "jira": {
-      "source": "custom",
-      "command": "python",
+      "command": "/path/to/simple-jira-mcp/venv/bin/python",
       "args": ["-m", "src"],
       "env": {
         "JIRA_CONFIG_JSON": "[{\"id\": \"work\", \"url\": \"https://your-domain.atlassian.net\", \"email\": \"your-email@example.com\", \"token\": \"your-api-token\"}]"
@@ -218,8 +222,8 @@ Add to Zed `settings.json`:
 }
 ```
 
-Note: Run Zed from the project folder or use the full path to the Python
-executable in the venv.
+Note: Zed does not support a `cwd` key, so the venv interpreter path is
+required here rather than optional.
 
 ### Windows Notes
 
