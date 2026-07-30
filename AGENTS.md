@@ -73,8 +73,10 @@ These are non-obvious behaviors that cause real bugs:
 
 ## Error Handling
 
-Two-tier model: protocol errors (JSON-RPC) for invalid tool calls, execution
-errors (`isError: true`) for runtime failures.
+Two-tier model: protocol errors (JSON-RPC) for invalid tool calls, and an
+in-band `isError: true` field in the returned payload (built by
+`error_response()` in `src/utils/errors.py`) for runtime failures — tools
+never raise, so the MCP protocol-level error flag is not set.
 Full error code reference: `API_REFERENCE.md`.
 
 ## Refactoring Safety
