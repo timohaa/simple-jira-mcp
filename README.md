@@ -11,6 +11,34 @@ for AI agents.
 - Download attachments
 - Support for multiple Jira configurations
 
+## Why not the official Atlassian MCP server?
+
+Atlassian ships an official remote server
+([atlassian/atlassian-mcp-server](https://github.com/atlassian/atlassian-mcp-server)).
+It covers far more ground — Confluence, JSM, Bitbucket, Compass, and issue
+updates and transitions — with per-user OAuth scoping (API tokens optional)
+and nothing for you to host. **If you need that breadth, use it.**
+
+This server is worth choosing when:
+
+- **You work across separate Jira instances.** `JIRA_CONFIG_JSON` takes a
+  list and every tool that reaches Jira accepts `config_id`. The official
+  server authorizes one Atlassian identity per connection.
+- **You need attachment files on disk.** The official server has no
+  attachment operations.
+- **No org admin available.** The official server needs one — either to
+  enable Rovo on a verified business domain (OAuth) or to explicitly enable
+  its API-token authentication. This one needs only your own API token.
+- **Tool-surface size matters.** Five tools instead of ~16 Jira tools plus
+  four other products, a `fields` allowlist on search, and ADF flattened to
+  plain text — less context spent per request.
+- **You want a small blast radius.** Search, read, create, download. No
+  delete, no bulk mutation, no cross-product writes.
+
+Trade-offs, stated plainly: no Confluence or other Atlassian products, no way
+to update or transition an existing issue, a shared API token rather than
+per-user OAuth, and you maintain it yourself.
+
 ## Requirements
 
 - Python 3.11+
@@ -42,12 +70,18 @@ export JIRA_CONFIG_JSON='[
     "id": "work",
     "url": "https://your-domain.atlassian.net",
     "email": "your-email@example.com",
-    "token": "your-api-token"
+    "token": "your-api-token",
+    "timeout": 60
   }
 ]'
 ```
 
 Generate an API token at: <https://id.atlassian.com/manage-profile/security/api-tokens>
+
+`timeout` is optional and per-instance: seconds to allow for each HTTP phase,
+defaulting to 30. Raise it for a slow instance or large attachments. It must be
+a positive number — the server refuses to start otherwise. See
+[API_REFERENCE.md](API_REFERENCE.md) for exactly what the budget covers.
 
 ## AI Tool Integration
 
@@ -55,6 +89,11 @@ In every snippet below, replace `/path/to/simple-jira-mcp` with your checkout
 path. The `command` must be the venv interpreter created during installation —
 a bare `python` only works if the ambient interpreter already has `mcp` and
 `httpx` installed.
+
+`cwd` is not needed to start the server (since 0.3.0 `python -m src` resolves
+from the installed package regardless of directory), but it sets where
+`download_attachment` saves files when `output_dir` is omitted. Without it,
+downloads land in whatever directory the client launched the server from.
 
 ### Claude Desktop
 
@@ -222,8 +261,9 @@ Add to Zed `settings.json`:
 }
 ```
 
-Note: Zed does not support a `cwd` key, so the venv interpreter path is
-required here rather than optional.
+Note: Zed does not document a `cwd` key, so this snippet omits it. The server
+still starts fine, but pass `output_dir` explicitly to `download_attachment` —
+otherwise files land in whatever directory Zed launched the server from.
 
 ### Windows Notes
 
@@ -249,9 +289,17 @@ On Windows, use full paths with backslashes:
 ## Usage Notes
 
 - `list_configs`: Returns configs with `default` true for the first entry
-  in `JIRA_CONFIG_JSON`.
-- `search_issues`: JQL must include at least one bounding filter;
-  semicolons and newlines are rejected. Supports cursor pagination with
+  in `JIRA_CONFIG_JSON`, plus each config's effective `timeout`. It never
+  returns an error — with no configs loaded it reports `{"configs": []}`
+  rather than `CONFIG_NOT_FOUND`. The server exits at startup when
+  `JIRA_CONFIG_JSON` is unset or empty, so a running server always has at
+  least one config.
+- `search_issues`: JQL must include at least one bounding filter (project,
+  status, assignee, reporter, priority, type, key, id, or a
+  created/updated/resolved clause) — any one of them satisfies the check, so
+  a query need not be scoped to a project. Quote values that are JQL
+  reserved words: `project = "ON"`, not `project = ON`.
+  Semicolons and newlines are rejected. Supports cursor pagination with
   `next_page_token` and `is_last` (the Jira `/search/jql` endpoint returns
   no total count). The optional `fields` allowlist is forwarded to Jira and
   drives the response shape: each issue contains `key`, `url`, and only the

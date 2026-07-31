@@ -7,12 +7,18 @@ Authoritative reference for the Jira MCP tools.
 ### list_configs
 
 - Purpose: List configured Jira instances.
-- Returns: `{"configs": [{"id": str, "url": str, "default": bool}, ...]}`.
+- Returns: `{"configs": [{"id": str, "url": str, "default": bool,
+  "timeout": float}, ...]}`. Credentials are never included.
+- Errors: none. This tool never returns `isError`. With no configs loaded it
+  returns `{"configs": []}` rather than `CONFIG_NOT_FOUND` — an empty roster
+  is not an error. That case is unreachable in normal operation: the server
+  exits at startup if `JIRA_CONFIG_JSON` is unset, malformed, or empty.
 
 ### search_issues
 
 - Purpose: Run bounded JQL queries (semicolon and newline are rejected).
-- Inputs: `jql` (required, must include a filter), `config_id` (optional),
+- Inputs: `jql` (required, must include a bounding clause — see Validation
+  Notes; scoping to a project is *not* required), `config_id` (optional),
   `limit` 1-100 (default 50), `next_page_token` (cursor pagination),
   `fields` (optional allowlist, forwarded to Jira as the requested fields).
   Pagination is cursor-based via `next_page_token` (Jira API v3 does not
@@ -70,6 +76,8 @@ Authoritative reference for the Jira MCP tools.
 - Returns: `{"success": true, "filename": str, "path": str, "size_kb": float,
   "mime_type": str}`. `filename` is the sanitized name and `mime_type` comes
   from the download response's `content-type` header.
+- Known limit: the attachment is read fully into memory before being written
+  to disk, and there is no size cap. Very large attachments are memory-bound.
 - Errors: `ATTACHMENT_NOT_FOUND`, `ISSUE_NOT_FOUND`, `AUTH_FAILED`,
   `CONFIG_NOT_FOUND`, `DOWNLOAD_FAILED`, `VALIDATION_ERROR`, `RATE_LIMITED`,
   `JIRA_ERROR`.
@@ -92,6 +100,24 @@ Authoritative reference for the Jira MCP tools.
 | `RATE_LIMITED`         | Jira API rate limit exceeded        |
 | `JIRA_ERROR`           | Unexpected Jira error               |
 
+## Timeouts
+
+- Every Jira request uses the `timeout` of its config, an optional field in
+  each `JIRA_CONFIG_JSON` entry. It defaults to `30.0` seconds and must be a
+  positive number; anything else fails at startup.
+- The value is a budget for each HTTP phase *independently* — connect, read,
+  write, and pool each get the full amount — not a deadline for the request as
+  a whole. A request can therefore outlive a single `timeout` interval.
+- The read budget applies per chunk of the response body, so it does not bound
+  the total duration of a large `download_attachment`. It fires when Jira
+  stalls, not when the transfer is merely long.
+- A timeout is reported as a transport failure, indistinguishable from other
+  connection errors: `JIRA_ERROR` from `search_issues`, `get_issue`, and
+  `create_issue`, and `DOWNLOAD_FAILED` from the transfer step of
+  `download_attachment` — the metadata fetch that precedes it is a `get_issue`
+  call, so a timeout there surfaces as `JIRA_ERROR`. The message text comes
+  from the underlying httpx exception.
+
 ## Validation Notes
 
 - JQL must include at least one bounding filter; semicolons and newlines are
@@ -100,6 +126,9 @@ Authoritative reference for the Jira MCP tools.
   `resolved`, `status`, `type`, `issuetype`, `priority`, `key`, `id`. They are
   matched as whole words outside quoted strings and outside the `ORDER BY`
   clause, so `text ~ "project plan" ORDER BY created` is still unbounded.
+- Any one of those keywords satisfies the check — a query does not have to be
+  scoped to a project. `status = "Done"` is accepted and searches every
+  project the account can see.
 - `limit` must be 1-100.
 - `issue_key` pattern: `^[A-Z][A-Z0-9]+-\d+$`;
   `project_key`: `^[A-Z][A-Z0-9]+$`. Both are trimmed and upper-cased first.
@@ -112,11 +141,18 @@ Authoritative reference for the Jira MCP tools.
 
 ## Common JQL Patterns
 
+Quote any value that is a JQL reserved word, or Jira's parser rejects the
+query with `INVALID_JQL` and a character offset. `ON`, `IN`, `IS`, `TO`,
+`BY`, `AND`, `OR`, `NOT`, `NULL`, `EMPTY`, `WAS`, `CF`, and `FROM` are all
+reserved, and short project keys collide with them often:
+`project = "ON"` works, `project = ON` does not. Quoting is always safe, so
+quote project keys unconditionally.
+
 - Updated in range: `updated >= "2025-01-15" AND updated < "2025-01-16"`
 - Created in range: `created >= "2025-01-01" AND created < "2025-02-01"`
 - Current user involvement: `assignee = currentUser() OR reporter = currentUser()`
-- Project filter: `project = ONE`
-- Keyword search: `project = ONE AND text ~ "questionnaire"`
+- Project filter: `project = "ONE"`
+- Keyword search: `project = "ONE" AND text ~ "questionnaire"`
 - Completed in window:
-  `project = ONE AND status = "Done" AND resolved >= "2025-10-15"
+  `project = "ONE" AND status = "Done" AND resolved >= "2025-10-15"
   AND resolved < "2025-10-31"`

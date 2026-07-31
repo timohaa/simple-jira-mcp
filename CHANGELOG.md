@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The `search_issues` tool description now names the clauses that satisfy the
+  bounding check and states that scoping to a project is not required — the
+  previous "Requires bounded query" wording read as a project-scope
+  requirement
+- `UNBOUNDED_QUERY` errors now list the accepted bounding keywords
+
+### Added
+
+- Optional per-config `timeout` field in `JIRA_CONFIG_JSON` (seconds,
+  defaults to 30.0) controlling the HTTP timeout for that instance; a
+  non-numeric or non-positive value is rejected at startup
+- `list_configs` now reports each config's effective `timeout`
+
+### Documentation
+
+- Document the HTTP timeout: what the budget covers, why it does not bound
+  a large attachment download, and which error codes a timeout surfaces as
+- Document that `list_configs` never returns an error and reports
+  `{"configs": []}` rather than `CONFIG_NOT_FOUND` for an empty roster
+- Note that `download_attachment` buffers the whole attachment in memory
+- Document that JQL values which are reserved words must be quoted
+  (`project = "ON"`), a first-query trap for short project keys
+
 ## [0.3.0] - 2026-07-26
 
 ### Changed
@@ -48,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecated `start_at` parameter from `search_issues` (use token-based
   pagination instead)
 
-## [0.1.0] - 2025-12-08
+## [0.1.0] - 2025-12-12
 
 ### Added
 
