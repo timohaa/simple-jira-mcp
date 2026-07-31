@@ -1,6 +1,37 @@
 """Tests for JiraClientBase helper methods."""
 
+from src.config import DEFAULT_TIMEOUT, JiraConfig
 from src.jira.base import JiraClientBase
+
+
+def _config(**overrides) -> JiraConfig:
+    """Build a JiraConfig with test defaults."""
+    values = {
+        "id": "test",
+        "url": "https://example.atlassian.net",
+        "email": "user@example.com",
+        "token": "token",
+    }
+    values.update(overrides)
+    return JiraConfig(**values)  # type: ignore[arg-type]
+
+
+def test_create_client_uses_default_timeout():
+    """Test _create_client falls back to the 30s default."""
+    client = JiraClientBase(_config())._create_client()
+
+    assert client.timeout.connect == DEFAULT_TIMEOUT
+    assert client.timeout.read == DEFAULT_TIMEOUT
+
+
+def test_create_client_uses_config_timeout():
+    """Test _create_client honours a per-config timeout."""
+    client = JiraClientBase(_config(timeout=5.0))._create_client()
+
+    assert client.timeout.connect == 5.0
+    assert client.timeout.read == 5.0
+    assert client.timeout.write == 5.0
+    assert client.timeout.pool == 5.0
 
 
 def test_extract_name_with_none():

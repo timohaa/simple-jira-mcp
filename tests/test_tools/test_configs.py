@@ -6,7 +6,7 @@ import os
 import pytest
 
 import src.config
-from src.config import reset_config_state
+from src.config import DEFAULT_TIMEOUT, reset_config_state
 from src.tools.configs import list_configs
 
 
@@ -71,6 +71,14 @@ class TestListConfigs:
         assert result == {"configs": []}
 
     @pytest.mark.asyncio
+    async def test_never_errors_when_no_configs(self, clean_config):
+        # Documented contract: an empty roster is not CONFIG_NOT_FOUND.
+        result = await list_configs()
+
+        assert "isError" not in result
+        assert "error" not in result
+
+    @pytest.mark.asyncio
     async def test_returns_single_config(self, single_config):
         result = await list_configs()
 
@@ -78,6 +86,25 @@ class TestListConfigs:
         assert result["configs"][0]["id"] == "work"
         assert result["configs"][0]["url"] == "https://work.atlassian.net"
         assert result["configs"][0]["default"] is True
+        assert result["configs"][0]["timeout"] == DEFAULT_TIMEOUT
+
+    @pytest.mark.asyncio
+    async def test_surfaces_configured_timeout(self, clean_config):
+        config_data = [
+            {
+                "id": "slow",
+                "url": "https://slow.atlassian.net",
+                "email": "slow@example.com",
+                "token": "slow-token",
+                "timeout": 120,
+            }
+        ]
+        os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
+        src.config.load_configs()
+
+        result = await list_configs()
+
+        assert result["configs"][0]["timeout"] == 120.0
 
     @pytest.mark.asyncio
     async def test_returns_multiple_configs(self, multi_config):

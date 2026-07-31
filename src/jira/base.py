@@ -22,8 +22,6 @@ SEARCH_PATH = f"{API_BASE}/search/jql"
 ISSUE_PATH = f"{API_BASE}/issue"
 ATTACHMENT_PATH = f"{API_BASE}/attachment/content"
 
-DEFAULT_TIMEOUT = 30.0
-
 
 class JiraClientBase:
     """Base class for Jira API operations with shared utilities."""
@@ -42,8 +40,8 @@ class JiraClientBase:
         return (self.config.email, self.config.token)
 
     def _create_client(self) -> httpx.AsyncClient:
-        """Create an async HTTP client with default timeout."""
-        return httpx.AsyncClient(timeout=DEFAULT_TIMEOUT)
+        """Create an async HTTP client using the config's timeout."""
+        return httpx.AsyncClient(timeout=self.config.timeout)
 
     @staticmethod
     def _extract_name(obj: dict[str, Any] | None) -> str | None:

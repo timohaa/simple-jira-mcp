@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
+from typing import Any
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,6 +13,9 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_TIMEOUT = 30.0
 
 
 @dataclass
@@ -22,10 +26,39 @@ class JiraConfig:
     url: str
     email: str
     token: str
+    timeout: float = DEFAULT_TIMEOUT
 
 
 _configs: list[JiraConfig] = []
 _default_config_id: str | None = None
+
+
+def _parse_timeout(item: dict[str, Any]) -> float:
+    """Read the optional per-config 'timeout' field.
+
+    Args:
+        item: A single raw config object from JIRA_CONFIG_JSON.
+
+    Returns:
+        The timeout in seconds, or DEFAULT_TIMEOUT when the field is absent.
+
+    Raises:
+        ValueError: If the value is not a positive number.
+    """
+    if "timeout" not in item:
+        return DEFAULT_TIMEOUT
+
+    value = item["timeout"]
+    # bool is a subclass of int, so `true` would otherwise become 1.0.
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        msg = f"Config '{item['id']}' has invalid 'timeout': must be a number"
+        raise ValueError(msg)
+
+    if value <= 0:
+        msg = f"Config '{item['id']}' has invalid 'timeout': must be positive"
+        raise ValueError(msg)
+
+    return float(value)
 
 
 def load_configs() -> list[JiraConfig]:
@@ -72,6 +105,7 @@ def load_configs() -> list[JiraConfig]:
                 url=str(item["url"]).rstrip("/"),
                 email=str(item["email"]),
                 token=str(item["token"]),
+                timeout=_parse_timeout(item),
             )
         )
 
