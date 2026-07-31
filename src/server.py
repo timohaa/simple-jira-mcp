@@ -32,7 +32,15 @@ async def list_configs() -> dict[str, Any]:
     return await _list_configs()
 
 
-@mcp.tool(description="Search issues via JQL. Requires bounded query.")
+@mcp.tool(
+    description=(
+        "Search issues via JQL. The query needs at least one bounding clause — "
+        "project, status, assignee, reporter, priority, type/issuetype, key, id, "
+        "or created/updated/resolved — but it does not have to be scoped to a "
+        "project. Quote values that are JQL reserved words: "
+        'project = "ON", not project = ON.'
+    )
+)
 async def search_issues(
     jql: str,
     config_id: str | None = None,

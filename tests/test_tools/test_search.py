@@ -10,6 +10,7 @@ import pytest
 import src.config
 from src.config import reset_config_state
 from src.tools.search import search_issues
+from src.utils.validation import BOUNDING_KEYWORDS
 
 
 @pytest.fixture
@@ -79,6 +80,9 @@ class TestSearchValidation:
 
         assert result["isError"] is True
         assert result["error"]["code"] == "UNBOUNDED_QUERY"
+        # The message must name the clauses that actually satisfy the guard
+        message = result["error"]["message"]
+        assert all(keyword in message for keyword in BOUNDING_KEYWORDS)
 
     @pytest.mark.asyncio
     async def test_jql_with_disallowed_characters_returns_error(self, mock_config):

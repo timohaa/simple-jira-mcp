@@ -136,6 +136,15 @@ class TestIsBoundedQuery:
     def test_bounded_with_order_by(self):
         assert is_bounded_query("project = ONE ORDER BY created DESC") is True
 
+    def test_bounded_with_quoted_reserved_word_project(self):
+        # Reserved-word keys such as ON must be quoted for Jira's parser;
+        # stripping the quoted value must not hide the project clause.
+        assert is_bounded_query('project = "ON"') is True
+
+    def test_bounded_without_project_scope(self):
+        # A bounding clause need not scope to a project.
+        assert is_bounded_query('status = "Done" AND updated >= "2025-01-01"') is True
+
 
 class TestJqlSafety:
     def test_disallows_semicolon(self):

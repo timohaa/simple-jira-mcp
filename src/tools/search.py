@@ -11,6 +11,7 @@ from src.utils.errors import (
     error_response,
 )
 from src.utils.validation import (
+    BOUNDING_KEYWORDS,
     has_disallowed_jql_chars,
     is_bounded_query,
     validate_limit,
@@ -32,8 +33,9 @@ def _validate_jql(jql: str) -> dict[str, Any] | None:
     if not is_bounded_query(jql):
         return error_response(
             UNBOUNDED_QUERY,
-            "JQL query must include at least one filter "
-            "(project, date range, assignee, etc.)",
+            "JQL query must include at least one bounding clause: "
+            f"{', '.join(sorted(BOUNDING_KEYWORDS))}. "
+            "Scoping to a project is not required.",
         )
 
     return None
@@ -73,7 +75,8 @@ async def search_issues(
     """Search for Jira issues using JQL.
 
     Args:
-        jql: JQL query string (must be bounded).
+        jql: JQL query string; must contain at least one bounding clause.
+            Values that are JQL reserved words need quoting (project = "ON").
         config_id: Configuration ID to use.
         limit: Maximum results to return (1-100).
         next_page_token: Token for cursor-based pagination.
