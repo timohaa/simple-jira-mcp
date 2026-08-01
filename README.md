@@ -295,7 +295,7 @@ On Windows, use full paths with backslashes:
   `JIRA_CONFIG_JSON` is unset or empty, so a running server always has at
   least one config.
 - `search_issues`: JQL must include at least one bounding filter (project,
-  status, assignee, reporter, priority, type, key, id, or a
+  status, assignee, reporter, priority, type/issuetype, key, id, or a
   created/updated/resolved clause) — any one of them satisfies the check, so
   a query need not be scoped to a project. Quote values that are JQL
   reserved words: `project = "ON"`, not `project = ON`.
