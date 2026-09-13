@@ -27,7 +27,14 @@ Use `stderr` via the `logging` module for all diagnostics.
 ```
 
 Run `check_thresholds` (scopewalker MCP tool) before committing to enforce
-file <300 / function <100 line limits.
+file <300 / function <100 line limits. `get_prop_drilling` flags parameters
+threaded through 3+ functions; `find_dead_code` (run on the project root with
+`ignore_patterns: ["**/test_*.py", "**/tests/**"]`) flags unreferenced symbols
+and private methods.
+
+Install once (needs Node 22+ and `tokei`, e.g. `brew install tokei`):
+`claude mcp add --scope user scopewalker-mcp -- npx -y scopewalker-mcp`.
+Source and docs: https://github.com/timohaa/scopewalker-mcp
 
 ## Behavior
 
