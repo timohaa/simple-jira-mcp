@@ -13,6 +13,9 @@ from src.tools.configs import list_configs as _list_configs
 from src.tools.create import create_issue as _create_issue
 from src.tools.issue import get_issue as _get_issue
 from src.tools.search import search_issues as _search_issues
+from src.tools.workflow import add_comment as _add_comment
+from src.tools.workflow import get_transitions as _get_transitions
+from src.tools.workflow import transition_issue as _transition_issue
 
 # Configure logging to stderr only (critical for MCP stdio transport)
 logging.basicConfig(
@@ -107,6 +110,73 @@ async def create_issue(
         assignee_account_id=assignee_account_id,
         config_id=config_id,
     )
+
+
+@mcp.tool(
+    description=(
+        "Get available transitions for a Jira issue. Returns transition IDs, names, "
+        "target statuses, and screen fields with required flags and allowed values."
+    )
+)
+async def get_transitions(
+    issue_key: str, config_id: str | None = None
+) -> dict[str, Any]:
+    """Get available transitions and transition screen fields."""
+    logger.info(
+        "get_transitions invoked (issue_key=%s, config_id=%s)",
+        issue_key,
+        config_id or "default",
+    )
+    return await _get_transitions(issue_key, config_id=config_id)
+
+
+@mcp.tool(
+    description=(
+        "Transition a Jira issue using a transition ID or a case-insensitive "
+        "transition/target-status name. Optional plain-text comment is posted in "
+        "the same request. Resolution and fields must be accepted by the transition "
+        "screen. Returns the new status, resolution, and resolutiondate. Jira sets "
+        "resolutiondate itself; the API cannot edit it. Record the actual completion "
+        "date in the comment."
+    )
+)
+async def transition_issue(
+    issue_key: str,
+    transition: str,
+    comment: str | None = None,
+    resolution: str | None = None,
+    fields: dict[str, Any] | None = None,
+    config_id: str | None = None,
+) -> dict[str, Any]:
+    """Transition an issue and return its updated state."""
+    logger.info(
+        "transition_issue invoked (issue_key=%s, config_id=%s)",
+        issue_key,
+        config_id or "default",
+    )
+    return await _transition_issue(
+        issue_key,
+        transition,
+        comment=comment,
+        resolution=resolution,
+        fields=fields,
+        config_id=config_id,
+    )
+
+
+@mcp.tool(
+    description="Add a plain-text comment to a Jira issue. Returns ID and created."
+)
+async def add_comment(
+    issue_key: str, body: str, config_id: str | None = None
+) -> dict[str, Any]:
+    """Add a comment to an issue."""
+    logger.info(
+        "add_comment invoked (issue_key=%s, config_id=%s)",
+        issue_key,
+        config_id or "default",
+    )
+    return await _add_comment(issue_key, body, config_id=config_id)
 
 
 @mcp.tool(description="Download an attachment from a Jira issue to a local file.")

@@ -7,6 +7,7 @@ is split across multiple modules for maintainability:
 - issue.py: Get issue operations
 - create.py: Create issue operations
 - attachment.py: Attachment download operations
+- workflow.py: Issue transitions and comments
 """
 
 from pathlib import Path
@@ -17,6 +18,7 @@ from src.jira.attachment import AttachmentOperation
 from src.jira.create import CreateIssueParams, CreateOperation
 from src.jira.issue import IssueOperation
 from src.jira.search import DEFAULT_SEARCH_FIELDS, SearchOperation, SearchParams
+from src.jira.workflow import WorkflowOperation
 from src.utils.errors import ErrorResponse
 
 # Re-export dataclasses for external use
@@ -41,6 +43,7 @@ class JiraClient:
         self._issue = IssueOperation(config)
         self._create = CreateOperation(config)
         self._attachment = AttachmentOperation(config)
+        self._workflow = WorkflowOperation(config)
 
     async def search(
         self,
@@ -105,6 +108,30 @@ class JiraClient:
             Created issue info or error response.
         """
         return await self._create.create_issue(params)
+
+    async def get_transitions(self, issue_key: str) -> dict[str, Any] | ErrorResponse:
+        """Get available transitions and their screen fields for an issue."""
+        return await self._workflow.get_transitions(issue_key)
+
+    async def transition_issue(
+        self,
+        issue_key: str,
+        transition: str,
+        *,
+        comment: str | None = None,
+        resolution: str | None = None,
+        fields: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | ErrorResponse:
+        """Transition an issue by ID or name and return the resulting state."""
+        return await self._workflow.transition_issue(
+            issue_key, transition, comment=comment, resolution=resolution, fields=fields
+        )
+
+    async def add_comment(
+        self, issue_key: str, body: str
+    ) -> dict[str, Any] | ErrorResponse:
+        """Add a plain-text comment to an issue."""
+        return await self._workflow.add_comment(issue_key, body)
 
     async def download_attachment(
         self,

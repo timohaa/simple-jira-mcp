@@ -8,6 +8,8 @@ for AI agents.
 - Search issues using JQL (Jira Query Language)
 - Retrieve issue details with comments and attachments
 - Create new issues
+- List available transitions and transition issues with screen fields
+- Add comments, including comments posted with a transition
 - Download attachments
 - Support for multiple Jira configurations
 
@@ -29,15 +31,16 @@ This server is worth choosing when:
 - **No org admin available.** The official server needs one — either to
   enable Rovo on a verified business domain (OAuth) or to explicitly enable
   its API-token authentication. This one needs only your own API token.
-- **Tool-surface size matters.** Five tools instead of ~16 Jira tools plus
+- **Tool-surface size matters.** Eight tools instead of ~16 Jira tools plus
   four other products, a `fields` allowlist on search, and ADF flattened to
   plain text — less context spent per request.
-- **You want a small blast radius.** Search, read, create, download. No
+- **You want a small blast radius.** Search, read, create, transition, comment,
+  and download. No
   delete, no bulk mutation, no cross-product writes.
 
-Trade-offs, stated plainly: no Confluence or other Atlassian products, no way
-to update or transition an existing issue, a shared API token rather than
-per-user OAuth, and you maintain it yourself.
+Trade-offs, stated plainly: no Confluence or other Atlassian products, no general
+issue editing tool, a shared API token rather than per-user OAuth, and you
+maintain it yourself.
 
 ## Requirements
 
@@ -284,6 +287,9 @@ On Windows, use full paths with backslashes:
 | `search_issues`       | Search issues using JQL              |
 | `get_issue`           | Get detailed issue information       |
 | `create_issue`        | Create a new issue                   |
+| `get_transitions`     | List transitions and screen fields   |
+| `transition_issue`    | Transition an issue by ID or name    |
+| `add_comment`         | Add a plain-text comment             |
 | `download_attachment` | Download an attachment from an issue |
 
 ## Usage Notes
@@ -310,6 +316,16 @@ On Windows, use full paths with backslashes:
   `size_kb` and `mime_type`.
 - `create_issue`: Summary max 255 characters; description is converted to
   ADF; optional `priority`, `labels`, and `assignee_account_id`.
+- `get_transitions`: Returns transition IDs, names, target statuses, and screen
+  field metadata with required flags and allowed values.
+- `transition_issue`: Accepts an ID or case-insensitive transition/target-status
+  name. Ambiguous names return valid options. Optional `resolution` and `fields`
+  must be accepted by the screen; an optional plain-text `comment` is posted in
+  the same request. Returns status, resolution, and `resolutiondate` from Jira.
+  Jira sets `resolutiondate` itself; the API cannot edit it. Record the actual
+  completion date in the comment.
+- `add_comment`: Converts plain text to ADF and returns the comment ID and
+  creation time.
 - `download_attachment`: `output_dir` must exist when provided (defaults to
   the current working directory); files are saved to
   `<output_dir>/<issue_key>/` with sanitized filenames.

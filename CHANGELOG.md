@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-01
+
+### Added
+
+- `get_transitions` tool lists the workflow transitions available for an
+  issue, including the fields each transition screen accepts
+- `transition_issue` tool moves an issue through its workflow. The
+  transition can be given by ID, name, or target status, and may carry an
+  optional comment, resolution, and transition-screen fields. Unknown or
+  ambiguous names return `VALIDATION_ERROR` with the valid options
+- `add_comment` tool adds a plain-text comment to an issue, converted to ADF
+
+### Documentation
+
+- Document the three workflow tools in `README.md` and `API_REFERENCE.md`
+
 ## [0.4.0] - 2026-08-01
 
 ### Changed

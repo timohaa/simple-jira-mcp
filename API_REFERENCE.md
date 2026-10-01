@@ -65,6 +65,71 @@ Authoritative reference for the Jira MCP tools.
   `AUTH_FAILED`, `CONFIG_NOT_FOUND`, `VALIDATION_ERROR`, `RATE_LIMITED`,
   `JIRA_ERROR`.
 
+### get_transitions
+
+- Purpose: List transitions available to the current user for an issue.
+- Inputs: `issue_key` (PROJECT-123), `config_id` (optional).
+- Endpoint: `GET /rest/api/3/issue/{key}/transitions?expand=transitions.fields`.
+- Returns: `{"transitions": [{"id": str, "name": str, "status": str,
+  "fields": {field_id: metadata}}, ...]}`. `status` is the target status name.
+  Screen field metadata includes `required`, `name`, `schema`, `operations`,
+  and `allowedValues` when supplied by Jira. Required fields have
+  `required: true`. Transitions without screen fields return `fields: {}`.
+  An issue with no available transitions returns `transitions: []`.
+- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
+  `RATE_LIMITED`, `JIRA_ERROR`.
+
+### transition_issue
+
+- Purpose: Transition an issue, optionally setting screen fields and adding a comment.
+- Inputs: `issue_key` (PROJECT-123), `transition` (required string), `comment`
+  (optional plain text), `resolution` (optional resolution name), `fields`
+  (optional dict of Jira field IDs to native JSON values), `config_id` (optional).
+- Selection: An exact transition ID takes precedence. Otherwise, match the
+  transition name or target status name case-insensitively. Unknown or ambiguous
+  names return `VALIDATION_ERROR` with the available IDs, names, and target statuses.
+  Use an ID when several transitions lead to the same status.
+- Endpoint: Fetch expanded transition metadata, then
+  `POST /rest/api/3/issue/{key}/transitions`. An optional comment is converted to
+  ADF and included in the same request via `update.comment`.
+- Fields: `resolution` becomes `fields.resolution: {"name": resolution}`.
+  Supplied fields must appear in the selected transition's screen metadata and
+  support the `set` operation. Unsupported fields return `VALIDATION_ERROR`
+  before posting. Supply resolution either directly or in `fields`, never both.
+  Jira validates required fields, defaults, allowed values, and workflow rules.
+  See [Atlassian's transition API](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/#api-rest-api-3-issue-issueidorkey-transitions-post).
+- Returns: `{"key": str, "status": str, "resolution": str | null,
+  "resolutiondate": str | null}`. After the transition, fetch the issue's
+  `status,resolution,resolutiondate` fields to return Jira's current values.
+- Dates: Jira sets `resolutiondate` itself; the API cannot edit it. Attempts to
+  supply it in `fields` return `VALIDATION_ERROR`. Record the actual completion
+  date in the comment, for example `"Completed on 2026-09-30; verified today."`.
+- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
+  `RATE_LIMITED`, `JIRA_ERROR`. If the transition succeeds but the subsequent
+  read fails, the error message explicitly says the transition succeeded.
+  Read the issue before retrying the transition.
+
+Example inputs:
+
+```json
+{
+  "issue_key": "ONE-123",
+  "transition": "Done",
+  "comment": "Completed on 2026-09-30; verified today.",
+  "resolution": "Fixed"
+}
+```
+
+### add_comment
+
+- Purpose: Add a comment to an issue.
+- Inputs: `issue_key` (PROJECT-123), `body` (required non-empty plain text),
+  `config_id` (optional).
+- Endpoint: `POST /rest/api/3/issue/{key}/comment` with an ADF `body`.
+- Returns: `{"id": str, "created": str}` using Jira's comment ID and timestamp.
+- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
+  `RATE_LIMITED`, `JIRA_ERROR`.
+
 ### download_attachment
 
 - Purpose: Download an attachment to disk.
@@ -113,7 +178,8 @@ Authoritative reference for the Jira MCP tools.
   stalls, not when the transfer is merely long.
 - A timeout is reported as a transport failure, indistinguishable from other
   connection errors: `JIRA_ERROR` from `search_issues`, `get_issue`, and
-  `create_issue`, and `DOWNLOAD_FAILED` from the transfer step of
+  `create_issue`, `get_transitions`, `transition_issue`, and `add_comment`,
+  and `DOWNLOAD_FAILED` from the transfer step of
   `download_attachment` — the metadata fetch that precedes it is a `get_issue`
   call, so a timeout there surfaces as `JIRA_ERROR`. The message text comes
   from the underlying httpx exception.
@@ -133,6 +199,8 @@ Authoritative reference for the Jira MCP tools.
 - `issue_key` pattern: `^[A-Z][A-Z0-9]+-\d+$`;
   `project_key`: `^[A-Z][A-Z0-9]+$`. Both are trimmed and upper-cased first.
 - `attachment_id` must be numeric.
+- `transition` and comment `body` must not be empty or whitespace-only.
+  Optional transition `comment` and `resolution` must also be non-empty when supplied.
 - `output_dir` must exist and be a directory when provided; when omitted the
   current working directory is used.
 - Filenames are sanitized before writing: any directory component (`/` or `\`)

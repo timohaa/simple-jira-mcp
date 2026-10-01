@@ -31,5 +31,37 @@ def patch_async_client(monkeypatch):
         monkeypatch.setattr("src.jira.issue.httpx.AsyncClient", async_client)
         monkeypatch.setattr("src.jira.create.httpx.AsyncClient", async_client)
         monkeypatch.setattr("src.jira.attachment.httpx.AsyncClient", async_client)
+        monkeypatch.setattr("src.jira.workflow.httpx.AsyncClient", async_client)
 
     return _apply
+
+
+@pytest.fixture
+def workflow_transitions():
+    """Return transition screen metadata, including a required custom field."""
+    return [
+        {
+            "id": "11",
+            "name": "Start work",
+            "to": {"id": "3", "name": "In Progress"},
+        },
+        {
+            "id": "31",
+            "name": "Finish work",
+            "to": {"id": "5", "name": "Done"},
+            "fields": {
+                "resolution": {
+                    "name": "Resolution",
+                    "required": False,
+                    "operations": ["set"],
+                    "allowedValues": [{"id": "1", "name": "Fixed"}],
+                },
+                "customfield_10001": {
+                    "name": "Completion note",
+                    "required": True,
+                    "schema": {"type": "string"},
+                    "operations": ["set"],
+                },
+            },
+        },
+    ]
