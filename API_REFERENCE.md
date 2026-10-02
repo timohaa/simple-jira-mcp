@@ -177,7 +177,7 @@ Example inputs:
   the total duration of a large `download_attachment`. It fires when Jira
   stalls, not when the transfer is merely long.
 - A timeout is reported as a transport failure, indistinguishable from other
-  connection errors: `JIRA_ERROR` from `search_issues`, `get_issue`, and
+  connection errors: `JIRA_ERROR` from `search_issues`, `get_issue`,
   `create_issue`, `get_transitions`, `transition_issue`, and `add_comment`,
   and `DOWNLOAD_FAILED` from the transfer step of
   `download_attachment` — the metadata fetch that precedes it is a `get_issue`
