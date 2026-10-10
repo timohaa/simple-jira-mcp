@@ -9,6 +9,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-11
+
 ### Added
 
 - `get_issue` returns `duedate`
@@ -25,7 +27,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - `transition_issue` no longer loses the comment on transitions without a
   comment field. Jira ignores a comment sent with such a transition, so it is
-  now posted in a separate request after the transition
+  now posted in a separate request after the transition. If that request
+  fails, the error message says the transition succeeded
 
 ## [0.7.0] - 2026-10-11
 
