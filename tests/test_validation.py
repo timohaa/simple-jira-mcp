@@ -1,6 +1,6 @@
 """Tests for validation utilities."""
 
-from src.utils.validation import (
+from simple_jira_mcp.utils.validation import (
     has_disallowed_jql_chars,
     is_bounded_query,
     sanitize_filename,

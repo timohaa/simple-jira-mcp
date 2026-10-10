@@ -5,7 +5,7 @@ import json
 import httpx
 import pytest
 
-from src.jira.create import CreateIssueParams
+from simple_jira_mcp.jira.create import CreateIssueParams
 
 
 def _params(

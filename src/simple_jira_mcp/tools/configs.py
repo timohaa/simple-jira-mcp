@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from src.config import get_configs, get_default_config_id
+from simple_jira_mcp.config import get_configs, get_default_config_id
 
 
 async def list_configs() -> dict[str, Any]:

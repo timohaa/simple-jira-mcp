@@ -6,8 +6,8 @@ from typing import Any
 
 import httpx
 
-from src.jira.adf import text_to_adf
-from src.jira.base import (
+from simple_jira_mcp.jira.adf import text_to_adf
+from simple_jira_mcp.jira.base import (
     HTTP_BAD_REQUEST,
     HTTP_CREATED,
     HTTP_NOT_FOUND,
@@ -17,7 +17,7 @@ from src.jira.base import (
     ISSUE_PATH,
     JiraClientBase,
 )
-from src.utils.errors import (
+from simple_jira_mcp.utils.errors import (
     AUTH_FAILED,
     INVALID_ISSUE_TYPE,
     INVALID_PRIORITY,
@@ -27,6 +27,7 @@ from src.utils.errors import (
     VALIDATION_ERROR,
     ErrorResponse,
     error_response,
+    is_error,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,16 +83,11 @@ class CreateOperation(JiraClientBase):
         payload = {"fields": fields}
 
         try:
-            async with self._create_client() as client:
-                response = await client.post(
-                    url,
-                    json=payload,
-                    auth=self._get_auth(),
-                )
-                return self._handle_response(response)
+            response = await self._http.post(url, json=payload)
         except httpx.RequestError as e:
             logger.exception("Request failed for create_issue")
             return error_response(JIRA_ERROR, f"Request failed: {e}")
+        return self._handle_response(response)
 
     def _handle_response(
         self, response: httpx.Response
@@ -107,7 +103,9 @@ class CreateOperation(JiraClientBase):
         if response.status_code not in (HTTP_OK, HTTP_CREATED):
             return self._handle_unexpected_status(response)
 
-        data = response.json()
+        data = self._json_object(response)
+        if is_error(data):
+            return data
         key = data.get("key", "")
         return {
             "key": key,

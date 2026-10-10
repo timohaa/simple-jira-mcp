@@ -13,16 +13,31 @@ is split across multiple modules for maintainability:
 from pathlib import Path
 from typing import Any
 
-from src.config import JiraConfig
-from src.jira.attachment import AttachmentOperation
-from src.jira.create import CreateIssueParams, CreateOperation
-from src.jira.issue import IssueOperation
-from src.jira.search import DEFAULT_SEARCH_FIELDS, SearchOperation, SearchParams
-from src.jira.workflow import WorkflowOperation
-from src.utils.errors import ErrorResponse
+from simple_jira_mcp.config import JiraConfig, get_config
+from simple_jira_mcp.jira.attachment import AttachmentOperation
+from simple_jira_mcp.jira.base import HttpSession
+from simple_jira_mcp.jira.create import CreateIssueParams, CreateOperation
+from simple_jira_mcp.jira.issue import IssueOperation
+from simple_jira_mcp.jira.search import (
+    DEFAULT_SEARCH_FIELDS,
+    SearchOperation,
+    SearchParams,
+)
+from simple_jira_mcp.jira.workflow import WorkflowOperation
+from simple_jira_mcp.utils.errors import (
+    CONFIG_NOT_FOUND,
+    ErrorResponse,
+    error_response,
+)
 
 # Re-export dataclasses for external use
-__all__ = ["CreateIssueParams", "JiraClient", "SearchParams"]
+__all__ = [
+    "CreateIssueParams",
+    "JiraClient",
+    "SearchParams",
+    "close_clients",
+    "get_client",
+]
 
 
 class JiraClient:
@@ -39,11 +54,16 @@ class JiraClient:
             config: Jira configuration with URL and credentials.
         """
         self.config = config
-        self._search = SearchOperation(config)
-        self._issue = IssueOperation(config)
-        self._create = CreateOperation(config)
-        self._attachment = AttachmentOperation(config)
-        self._workflow = WorkflowOperation(config)
+        self._session = HttpSession(config)
+        self._search = SearchOperation(config, self._session)
+        self._issue = IssueOperation(config, self._session)
+        self._create = CreateOperation(config, self._session)
+        self._attachment = AttachmentOperation(config, self._session)
+        self._workflow = WorkflowOperation(config, self._session)
+
+    async def aclose(self) -> None:
+        """Close the pooled HTTP connections."""
+        await self._session.aclose()
 
     async def search(
         self,
@@ -157,3 +177,40 @@ class JiraClient:
             issue_key,
             filename,
         )
+
+
+_clients: dict[str, JiraClient] = {}
+
+
+def get_client(config_id: str | None = None) -> JiraClient | ErrorResponse:
+    """Return the pooled client for a configuration.
+
+    Args:
+        config_id: The configuration ID. If None, the default config is used.
+
+    Returns:
+        The client, or a CONFIG_NOT_FOUND error response.
+    """
+    config = get_config(config_id)
+    if not config:
+        message = (
+            f"Configuration '{config_id}' not found"
+            if config_id
+            else "No configuration available"
+        )
+        return error_response(CONFIG_NOT_FOUND, message)
+
+    client = _clients.get(config.id)
+    # Reloading the configuration replaces the JiraConfig objects, which
+    # invalidates clients built from the old ones.
+    if client is None or client.config is not config:
+        client = JiraClient(config)
+        _clients[config.id] = client
+    return client
+
+
+async def close_clients() -> None:
+    """Close every pooled client. Called on server shutdown."""
+    while _clients:
+        _, client = _clients.popitem()
+        await client.aclose()

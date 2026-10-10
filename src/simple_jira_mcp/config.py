@@ -3,29 +3,26 @@
 import json
 import logging
 import os
-import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    stream=sys.stderr,
-)
 logger = logging.getLogger(__name__)
 
 
 DEFAULT_TIMEOUT = 30.0
 
 
-@dataclass
+REQUIRED_FIELDS = ("id", "url", "email", "token")
+
+
+@dataclass(frozen=True)
 class JiraConfig:
     """Configuration for a single Jira instance."""
 
     id: str
     url: str
     email: str
-    token: str
+    token: str = field(repr=False)
     timeout: float = DEFAULT_TIMEOUT
 
 
@@ -61,6 +58,47 @@ def _parse_timeout(item: dict[str, Any]) -> float:
     return float(value)
 
 
+def _parse_config(item: object) -> JiraConfig:
+    """Validate one raw config object from JIRA_CONFIG_JSON.
+
+    Args:
+        item: A single decoded element of the JIRA_CONFIG_JSON array.
+
+    Returns:
+        The validated configuration.
+
+    Raises:
+        ValueError: If a required field is missing or empty, or the URL is
+            not https.
+    """
+    if not isinstance(item, dict):
+        msg = "Each config must be an object"
+        raise ValueError(msg)
+
+    values: dict[str, str] = {}
+    for name in REQUIRED_FIELDS:
+        if name not in item:
+            msg = f"Missing required field '{name}' in config"
+            raise ValueError(msg)
+        values[name] = str(item[name]).strip()
+        if not values[name]:
+            msg = f"Field '{name}' in config must not be empty"
+            raise ValueError(msg)
+
+    # Basic auth over plain http would send the API token in cleartext.
+    if not values["url"].lower().startswith("https://"):
+        msg = f"Config '{values['id']}' has invalid 'url': must start with https://"
+        raise ValueError(msg)
+
+    return JiraConfig(
+        id=values["id"],
+        url=values["url"].rstrip("/"),
+        email=values["email"],
+        token=values["token"],
+        timeout=_parse_timeout(item),
+    )
+
+
 def load_configs() -> list[JiraConfig]:
     """Load Jira configurations from environment variable.
 
@@ -68,7 +106,8 @@ def load_configs() -> list[JiraConfig]:
         List of JiraConfig instances.
 
     Raises:
-        ValueError: If JIRA_CONFIG_JSON is not set or invalid.
+        ValueError: If JIRA_CONFIG_JSON is not set or invalid, or two configs
+            share an id.
     """
     global _configs, _default_config_id  # noqa: PLW0603
 
@@ -87,29 +126,16 @@ def load_configs() -> list[JiraConfig]:
         msg = "JIRA_CONFIG_JSON must be a non-empty array"
         raise ValueError(msg)
 
-    _configs = []
+    configs: list[JiraConfig] = []
     for item in configs_data:
-        if not isinstance(item, dict):
-            msg = "Each config must be an object"
+        config = _parse_config(item)
+        if any(existing.id == config.id for existing in configs):
+            msg = f"Duplicate config id '{config.id}'"
             raise ValueError(msg)
+        configs.append(config)
 
-        required_fields = ["id", "url", "email", "token"]
-        for field in required_fields:
-            if field not in item:
-                msg = f"Missing required field '{field}' in config"
-                raise ValueError(msg)
-
-        _configs.append(
-            JiraConfig(
-                id=str(item["id"]),
-                url=str(item["url"]).rstrip("/"),
-                email=str(item["email"]),
-                token=str(item["token"]),
-                timeout=_parse_timeout(item),
-            )
-        )
-
-    _default_config_id = _configs[0].id if _configs else None
+    _configs = configs
+    _default_config_id = configs[0].id
     logger.info("Loaded %d Jira configuration(s)", len(_configs))
     return _configs
 

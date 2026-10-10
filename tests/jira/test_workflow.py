@@ -5,7 +5,7 @@ import json
 import httpx
 import pytest
 
-from src.jira.adf import adf_to_text, text_to_adf
+from simple_jira_mcp.jira.adf import adf_to_text, text_to_adf
 
 
 async def test_get_transitions(client, patch_async_client, workflow_transitions):

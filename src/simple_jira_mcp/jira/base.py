@@ -5,8 +5,9 @@ from typing import Any
 
 import httpx
 
-from src.config import JiraConfig
-from src.jira.adf import adf_to_text
+from simple_jira_mcp.config import JiraConfig
+from simple_jira_mcp.jira.adf import adf_to_text
+from simple_jira_mcp.utils.errors import JIRA_ERROR, ErrorResponse, error_response
 
 logger = logging.getLogger(__name__)
 
@@ -24,25 +25,69 @@ ISSUE_PATH = f"{API_BASE}/issue"
 ATTACHMENT_PATH = f"{API_BASE}/attachment/content"
 
 
+class HttpSession:
+    """One pooled, authenticated HTTP client for a Jira instance.
+
+    The client is created on first use so that it binds to the event loop
+    that issues the requests.
+    """
+
+    def __init__(self, config: JiraConfig) -> None:
+        """Initialize the session.
+
+        Args:
+            config: Jira configuration with credentials and timeout.
+        """
+        self._config = config
+        self._client: httpx.AsyncClient | None = None
+
+    @property
+    def client(self) -> httpx.AsyncClient:
+        """Return the shared client, creating it on first use."""
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                auth=(self._config.email, self._config.token),
+                timeout=self._config.timeout,
+            )
+        return self._client
+
+    async def aclose(self) -> None:
+        """Close the client if one was created."""
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+
+
 class JiraClientBase:
     """Base class for Jira API operations with shared utilities."""
 
-    def __init__(self, config: JiraConfig) -> None:
+    def __init__(self, config: JiraConfig, session: HttpSession | None = None) -> None:
         """Initialize the Jira client base.
 
         Args:
             config: Jira configuration with URL and credentials.
+            session: HTTP session to share with other operations. A private
+                one is created when omitted.
         """
         self.config = config
         self.base_url = config.url
+        self._session = session or HttpSession(config)
 
-    def _get_auth(self) -> tuple[str, str]:
-        """Get basic auth credentials."""
-        return (self.config.email, self.config.token)
+    @property
+    def _http(self) -> httpx.AsyncClient:
+        """The session's HTTP client."""
+        return self._session.client
 
-    def _create_client(self) -> httpx.AsyncClient:
-        """Create an async HTTP client using the config's timeout."""
-        return httpx.AsyncClient(timeout=self.config.timeout)
+    @staticmethod
+    def _json_object(response: httpx.Response) -> dict[str, Any] | ErrorResponse:
+        """Decode a success response body, which must be a JSON object."""
+        try:
+            data = response.json()
+        except ValueError:
+            data = None
+        if isinstance(data, dict):
+            return data
+        return error_response(JIRA_ERROR, "Invalid JSON response from Jira API")
 
     @staticmethod
     def _extract_name(obj: dict[str, Any] | None) -> str | None:
@@ -64,13 +109,6 @@ class JiraClientBase:
         if obj and isinstance(obj, dict):
             return obj.get("key")
         return None
-
-    @staticmethod
-    def _format_date(date_str: str | None) -> str | None:
-        """Return a Jira date string, or None if absent."""
-        if not date_str:
-            return None
-        return date_str
 
     def _extract_comments(self, comment_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Extract comments from issue data."""
@@ -98,7 +136,7 @@ class JiraClientBase:
                     "filename": att.get("filename"),
                     "size_kb": round(size_bytes / 1024, 2),
                     "mime_type": att.get("mimeType"),
-                    "created": self._format_date(att.get("created")),
+                    "created": att.get("created"),
                 }
             )
         return attachments

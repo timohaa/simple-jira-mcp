@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import src.config
-from src.config import reset_config_state
-from src.tools.attachment import download_attachment
+import simple_jira_mcp.config
+from simple_jira_mcp.config import reset_config_state
+from simple_jira_mcp.tools.attachment import download_attachment
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ def mock_config(clean_config):
         }
     ]
     os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-    src.config.load_configs()
+    simple_jira_mcp.config.load_configs()
 
 
 @pytest.fixture
@@ -156,10 +156,11 @@ class TestDownloadAttachmentSuccess:
 
         with (
             patch(
-                "src.tools.attachment.JiraClient.get_issue", new_callable=AsyncMock
+                "simple_jira_mcp.jira.client.JiraClient.get_issue",
+                new_callable=AsyncMock,
             ) as mock_get,
             patch(
-                "src.tools.attachment.JiraClient.download_attachment",
+                "simple_jira_mcp.jira.client.JiraClient.download_attachment",
                 new_callable=AsyncMock,
             ) as mock_download,
         ):
@@ -184,10 +185,11 @@ class TestDownloadAttachmentSuccess:
 
         with (
             patch(
-                "src.tools.attachment.JiraClient.get_issue", new_callable=AsyncMock
+                "simple_jira_mcp.jira.client.JiraClient.get_issue",
+                new_callable=AsyncMock,
             ) as mock_get,
             patch(
-                "src.tools.attachment.JiraClient.download_attachment",
+                "simple_jira_mcp.jira.client.JiraClient.download_attachment",
                 new_callable=AsyncMock,
             ) as mock_download,
         ):
@@ -215,7 +217,8 @@ class TestDownloadAttachmentApiErrors:
         self, mock_config, temp_dir, issue_response, expected_code
     ):
         with patch(
-            "src.tools.attachment.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = issue_response
             result = await download_attachment("ONE-123", "12345", output_dir=temp_dir)
@@ -233,7 +236,8 @@ class TestDownloadAttachmentApiErrors:
         }
 
         with patch(
-            "src.tools.attachment.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = issue_response
             result = await download_attachment("ONE-123", "12345", output_dir=temp_dir)
@@ -256,10 +260,11 @@ class TestDownloadAttachmentApiErrors:
 
         with (
             patch(
-                "src.tools.attachment.JiraClient.get_issue", new_callable=AsyncMock
+                "simple_jira_mcp.jira.client.JiraClient.get_issue",
+                new_callable=AsyncMock,
             ) as mock_get,
             patch(
-                "src.tools.attachment.JiraClient.download_attachment",
+                "simple_jira_mcp.jira.client.JiraClient.download_attachment",
                 new_callable=AsyncMock,
             ) as mock_download,
         ):
@@ -278,7 +283,8 @@ class TestDownloadAttachmentApiErrors:
         }
 
         with patch(
-            "src.tools.attachment.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = error_response
             result = await download_attachment("ONE-123", "12345", output_dir=temp_dir)

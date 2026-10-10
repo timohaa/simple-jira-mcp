@@ -5,8 +5,8 @@ from typing import Any
 
 import httpx
 
-from src.jira.adf import text_to_adf
-from src.jira.base import (
+from simple_jira_mcp.jira.adf import text_to_adf
+from simple_jira_mcp.jira.base import (
     HTTP_BAD_REQUEST,
     HTTP_CREATED,
     HTTP_NO_CONTENT,
@@ -17,7 +17,7 @@ from src.jira.base import (
     ISSUE_PATH,
     JiraClientBase,
 )
-from src.utils.errors import (
+from simple_jira_mcp.utils.errors import (
     AUTH_FAILED,
     ISSUE_NOT_FOUND,
     JIRA_ERROR,
@@ -25,6 +25,7 @@ from src.utils.errors import (
     VALIDATION_ERROR,
     ErrorResponse,
     error_response,
+    is_error,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,13 +41,13 @@ class WorkflowOperation(JiraClientBase):
             f"{self.base_url}{ISSUE_PATH}/{issue_key}/transitions",
             params={"expand": "transitions.fields"},
         )
-        if data.get("isError"):
+        if is_error(data):
             return data
         return {
             "transitions": [
                 {
-                    "id": str(item["id"]),
-                    "name": item["name"],
+                    "id": str(item.get("id", "")),
+                    "name": item.get("name") or "",
                     "status": self._extract_name(item.get("to")),
                     "fields": item.get("fields", {}),
                 }
@@ -65,13 +66,13 @@ class WorkflowOperation(JiraClientBase):
     ) -> dict[str, Any] | ErrorResponse:
         """Transition an issue and read its resulting status and resolution."""
         data = await self.get_transitions(issue_key)
-        if data.get("isError"):
+        if is_error(data):
             return data
         selected = self._resolve_transition(transition, data["transitions"])
-        if selected.get("isError"):
+        if is_error(selected):
             return selected
         payload = self._build_payload(selected, comment, resolution, fields)
-        if payload.get("isError"):
+        if is_error(payload):
             return payload
 
         url = f"{self.base_url}{ISSUE_PATH}/{issue_key}"
@@ -81,13 +82,13 @@ class WorkflowOperation(JiraClientBase):
             payload=payload,
             success_status=HTTP_NO_CONTENT,
         )
-        if result.get("isError"):
+        if is_error(result):
             return result
 
         result = await self._request(
             "GET", url, params={"fields": "status,resolution,resolutiondate"}
         )
-        if result.get("isError"):
+        if is_error(result):
             result["error"]["message"] = (
                 "Transition succeeded, but reading the updated issue failed: "
                 + result["error"]["message"]
@@ -98,7 +99,7 @@ class WorkflowOperation(JiraClientBase):
             "key": issue_key,
             "status": self._extract_name(updated.get("status")),
             "resolution": self._extract_name(updated.get("resolution")),
-            "resolutiondate": self._format_date(updated.get("resolutiondate")),
+            "resolutiondate": updated.get("resolutiondate"),
         }
 
     async def add_comment(
@@ -111,7 +112,7 @@ class WorkflowOperation(JiraClientBase):
             payload={"body": text_to_adf(body)},
             success_status=HTTP_CREATED,
         )
-        if data.get("isError"):
+        if is_error(data):
             return data
         return {"id": data.get("id"), "created": data.get("created")}
 
@@ -195,10 +196,9 @@ class WorkflowOperation(JiraClientBase):
     ) -> dict[str, Any] | ErrorResponse:
         """Send a workflow request with the existing auth and error conventions."""
         try:
-            async with self._create_client() as client:
-                response = await client.request(
-                    method, url, params=params, json=payload, auth=self._get_auth()
-                )
+            response = await self._http.request(
+                method, url, params=params, json=payload
+            )
         except httpx.RequestError as e:
             logger.exception("Request failed for issue workflow")
             return error_response(JIRA_ERROR, f"Request failed: {e}")
@@ -214,13 +214,7 @@ class WorkflowOperation(JiraClientBase):
         if response.status_code == success_status:
             if success_status == HTTP_NO_CONTENT:
                 return {}
-            try:
-                data = response.json()
-                if isinstance(data, dict):
-                    return data
-            except ValueError:
-                pass
-            return error_response(JIRA_ERROR, "Invalid JSON response from Jira API")
+            return self._json_object(response)
 
         message = f"Jira API error: {response.status_code}"
         try:

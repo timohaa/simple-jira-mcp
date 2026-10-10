@@ -5,8 +5,8 @@ from typing import Any
 
 import httpx
 
-from src.jira.adf import adf_to_text
-from src.jira.base import (
+from simple_jira_mcp.jira.adf import adf_to_text
+from simple_jira_mcp.jira.base import (
     HTTP_NOT_FOUND,
     HTTP_OK,
     HTTP_TOO_MANY_REQUESTS,
@@ -14,13 +14,14 @@ from src.jira.base import (
     ISSUE_PATH,
     JiraClientBase,
 )
-from src.utils.errors import (
+from simple_jira_mcp.utils.errors import (
     AUTH_FAILED,
     ISSUE_NOT_FOUND,
     JIRA_ERROR,
     RATE_LIMITED,
     ErrorResponse,
     error_response,
+    is_error,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,17 +50,11 @@ class IssueOperation(JiraClientBase):
         url = f"{self.base_url}{ISSUE_PATH}/{issue_key}"
 
         try:
-            async with self._create_client() as client:
-                response = await client.get(
-                    url,
-                    auth=self._get_auth(),
-                )
-                return self._handle_response(
-                    response, include_comments, include_attachments
-                )
+            response = await self._http.get(url)
         except httpx.RequestError as e:
             logger.exception("Request failed for get_issue")
             return error_response(JIRA_ERROR, f"Request failed: {e}")
+        return self._handle_response(response, include_comments, include_attachments)
 
     def _handle_response(
         self,
@@ -77,7 +72,9 @@ class IssueOperation(JiraClientBase):
         if response.status_code != HTTP_OK:
             return error_response(JIRA_ERROR, f"Jira API error: {response.status_code}")
 
-        data = response.json()
+        data = self._json_object(response)
+        if is_error(data):
+            return data
         return self._transform_issue(data, include_comments, include_attachments)
 
     def _transform_issue(
@@ -100,9 +97,9 @@ class IssueOperation(JiraClientBase):
             "priority": self._extract_name(fields.get("priority")),
             "issue_type": self._extract_name(fields.get("issuetype")),
             "labels": fields.get("labels", []),
-            "created": self._format_date(fields.get("created")),
-            "updated": self._format_date(fields.get("updated")),
-            "resolved": self._format_date(fields.get("resolutiondate")),
+            "created": fields.get("created"),
+            "updated": fields.get("updated"),
+            "resolved": fields.get("resolutiondate"),
             "url": f"{self.base_url}/browse/{key}",
         }
 

@@ -9,6 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-10
+
+### Breaking
+
+- The Python package is now `simple_jira_mcp` (was `src`). Change
+  `"args": ["-m", "src"]` to `"args": ["-m", "simple_jira_mcp"]` in MCP client
+  configs and reinstall with `pip install -e ".[dev]"`
+- Failed tool calls now set the MCP result's `isError` flag. The
+  `{"isError": true, "error": {...}}` body is unchanged, so clients that read
+  the error code keep working, but clients now see the call as failed
+- Arguments that violate a tool's input schema (`limit` outside 1-100, an
+  unknown `fields` value, a wrong type) are rejected by the SDK with a
+  plain-text message before the tool runs, in place of `VALIDATION_ERROR`
+- `JIRA_CONFIG_JSON` entries must use an `https://` URL, must not have empty
+  `id`, `url`, `email`, or `token` values, and must have unique `id` values.
+  The server exits at startup otherwise
+- Requires MCP Python SDK 2.x (`mcp>=2.3,<3`)
+
+### Added
+
+- `simple-jira-mcp` console script
+- Parameter descriptions, a `limit` range, and a `fields` enum in the tool
+  input schemas
+- Tool titles and annotations: the four read tools are marked read-only
+- Server `instructions` describing `config_id` and the transition workflow
+- GitHub Actions workflow running `./check.sh` on Python 3.11 and 3.14
+
+### Changed
+
+- One pooled HTTP client per Jira config replaces a new connection per
+  request; pooled clients are closed on shutdown
+- `download_attachment` streams to disk in chunks and removes the partial
+  file when a download fails partway
+- `download_attachment` appends the attachment ID to the filename when the
+  target path already exists, so same-named attachments no longer overwrite
+  each other
+- JQL text is logged at DEBUG; INFO logs record only that a search ran
+- Dependencies have version bounds; `requirements.txt` and
+  `requirements-dev.txt` are removed in favor of `pyproject.toml`
+
+### Fixed
+
+- Fresh installs failed with `ModuleNotFoundError: mcp.server.fastmcp`
+  because the unbounded `mcp` dependency resolved to 2.x
+- A success response whose body is not a JSON object now returns
+  `JIRA_ERROR` from `search_issues`, `get_issue`, and `create_issue`
+- `JiraConfig` no longer includes the API token in its `repr`
+
 ## [0.5.0] - 2026-10-01
 
 ### Added

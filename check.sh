@@ -116,7 +116,7 @@ fi
 if [[ "$RUN_TESTS" == "true" ]]; then
     if [[ "$COVERAGE" == "true" ]]; then
         echo "Running pytest with coverage..."
-        $VENV/pytest --cov=src --cov-report=term-missing --cov-report=html $PYTEST_ARGS
+        $VENV/pytest --cov=simple_jira_mcp --cov-report=term-missing --cov-report=html $PYTEST_ARGS
         echo ""
         echo "HTML coverage report: htmlcov/index.html"
     else

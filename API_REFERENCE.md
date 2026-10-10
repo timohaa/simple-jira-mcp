@@ -2,6 +2,25 @@
 
 Authoritative reference for the Jira MCP tools.
 
+## Results and Errors
+
+Every tool returns a JSON object, as both text content and structured
+content. A failed call sets the MCP result's `isError` flag and returns:
+
+```json
+{"isError": true, "error": {"code": "ISSUE_NOT_FOUND", "message": "Issue not found"}}
+```
+
+Arguments that violate a tool's input schema — a missing required argument,
+a wrong type, `limit` outside 1-100, or a `fields` value outside the
+allowlist — are rejected by the MCP SDK before the tool runs. Those results
+also set `isError`, but carry the SDK's plain-text validation message
+instead of the JSON object above.
+
+Tool annotations: `list_configs`, `search_issues`, `get_issue`, and
+`get_transitions` are marked read-only. The other four are marked
+non-destructive and non-idempotent.
+
 ## Tools
 
 ### list_configs
@@ -9,7 +28,7 @@ Authoritative reference for the Jira MCP tools.
 - Purpose: List configured Jira instances.
 - Returns: `{"configs": [{"id": str, "url": str, "default": bool,
   "timeout": float}, ...]}`. Credentials are never included.
-- Errors: none. This tool never returns `isError`. With no configs loaded it
+- Errors: none. This tool never reports an error. With no configs loaded it
   returns `{"configs": []}` rather than `CONFIG_NOT_FOUND` — an empty roster
   is not an error. That case is unreachable in normal operation: the server
   exits at startup if `JIRA_CONFIG_JSON` is unset, malformed, or empty.
@@ -25,8 +44,9 @@ Authoritative reference for the Jira MCP tools.
   support offset pagination).
 - Allowed `fields` values: `summary`, `status`, `assignee`, `reporter`,
   `priority`, `resolution`, `issuetype`, `labels`, `created`, `updated`,
-  `description`, `comment`, `attachment`, `project`. Any other value
-  returns `VALIDATION_ERROR`. `key` is not selectable — it is always
+  `description`, `comment`, `attachment`, `project`. The input schema lists
+  these as an enum, so any other value is rejected. `key` is not
+  selectable — it is always
   returned. When `fields` is omitted the default set is
   `summary`, `status`, `assignee`, `priority`, `updated`, `created`,
   `labels`, `issuetype`.
@@ -137,12 +157,16 @@ Example inputs:
   `output_dir` (must exist when provided, defaults to CWD), `config_id` (optional).
 - Behavior: Resolves the filename from the issue's attachment metadata, then
   saves to `<output_dir>/<issue_key>/<sanitized filename>`, creating the
-  `<issue_key>` subdirectory if needed.
+  `<issue_key>` subdirectory if needed. If that path already exists, the
+  attachment ID is appended to the stem (`log.txt` → `log-10042.txt`) so
+  same-named attachments on one issue do not overwrite each other.
+  Downloading the same attachment again overwrites its suffixed copy.
 - Returns: `{"success": true, "filename": str, "path": str, "size_kb": float,
   "mime_type": str}`. `filename` is the sanitized name and `mime_type` comes
   from the download response's `content-type` header.
-- Known limit: the attachment is read fully into memory before being written
-  to disk, and there is no size cap. Very large attachments are memory-bound.
+- The body is streamed to disk in chunks, so memory use does not grow with
+  attachment size. There is no size cap. A download that fails partway
+  removes its partial file.
 - Errors: `ATTACHMENT_NOT_FOUND`, `ISSUE_NOT_FOUND`, `AUTH_FAILED`,
   `CONFIG_NOT_FOUND`, `DOWNLOAD_FAILED`, `VALIDATION_ERROR`, `RATE_LIMITED`,
   `JIRA_ERROR`.
@@ -164,6 +188,17 @@ Example inputs:
 | `DOWNLOAD_FAILED`      | Attachment download failed          |
 | `RATE_LIMITED`         | Jira API rate limit exceeded        |
 | `JIRA_ERROR`           | Unexpected Jira error               |
+
+## Configuration Rules
+
+`JIRA_CONFIG_JSON` is validated at startup; the server exits on any failure.
+
+- `id`, `url`, `email`, and `token` are required and must not be empty.
+  Surrounding whitespace is trimmed.
+- `url` must start with `https://`. Basic auth over plain HTTP would expose
+  the API token.
+- `id` values must be unique.
+- `timeout` is optional; see Timeouts.
 
 ## Timeouts
 
@@ -195,7 +230,7 @@ Example inputs:
 - Any one of those keywords satisfies the check — a query does not have to be
   scoped to a project. `status = "Done"` is accepted and searches every
   project the account can see.
-- `limit` must be 1-100.
+- `limit` must be 1-100 (enforced by the input schema).
 - `issue_key` pattern: `^[A-Z][A-Z0-9]+-\d+$`;
   `project_key`: `^[A-Z][A-Z0-9]+$`. Both are trimmed and upper-cased first.
 - `attachment_id` must be numeric.

@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import src.config
-from src.config import reset_config_state
-from src.tools.issue import get_issue
+import simple_jira_mcp.config
+from simple_jira_mcp.config import reset_config_state
+from simple_jira_mcp.tools.issue import get_issue
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ def mock_config(clean_config):
         }
     ]
     os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-    src.config.load_configs()
+    simple_jira_mcp.config.load_configs()
 
 
 class TestGetIssueValidation:
@@ -76,7 +76,8 @@ class TestGetIssueValidation:
         }
 
         with patch(
-            "src.tools.issue.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = mock_response
             await get_issue("one-123")
@@ -121,7 +122,8 @@ class TestGetIssueSuccess:
         }
 
         with patch(
-            "src.tools.issue.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = mock_response
             result = await get_issue("ONE-123")
@@ -142,7 +144,8 @@ class TestGetIssueSuccess:
         }
 
         with patch(
-            "src.tools.issue.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = mock_response
             result = await get_issue("ONE-123", include_comments=True)
@@ -168,7 +171,8 @@ class TestGetIssueSuccess:
         }
 
         with patch(
-            "src.tools.issue.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = mock_response
             result = await get_issue("ONE-123", include_attachments=True)
@@ -181,7 +185,8 @@ class TestGetIssueSuccess:
         mock_response = {"key": "ONE-123", "summary": "Test", "attachments": []}
 
         with patch(
-            "src.tools.issue.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = mock_response
             await get_issue("ONE-123", include_comments=False)
@@ -195,7 +200,8 @@ class TestGetIssueSuccess:
         mock_response = {"key": "ONE-123", "summary": "Test", "comments": []}
 
         with patch(
-            "src.tools.issue.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = mock_response
             await get_issue("ONE-123", include_attachments=False)
@@ -214,7 +220,8 @@ class TestGetIssueApiErrors:
         }
 
         with patch(
-            "src.tools.issue.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = error_response
             result = await get_issue("ONE-999")
@@ -230,7 +237,8 @@ class TestGetIssueApiErrors:
         }
 
         with patch(
-            "src.tools.issue.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = error_response
             result = await get_issue("ONE-123")
@@ -246,7 +254,8 @@ class TestGetIssueApiErrors:
         }
 
         with patch(
-            "src.tools.issue.JiraClient.get_issue", new_callable=AsyncMock
+            "simple_jira_mcp.jira.client.JiraClient.get_issue",
+            new_callable=AsyncMock,
         ) as mock_get:
             mock_get.return_value = error_response
             result = await get_issue("ONE-123")

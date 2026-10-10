@@ -1,8 +1,6 @@
 """Entry point for running the MCP server as a module."""
 
-import asyncio
-
-from src.server import main
+from simple_jira_mcp.server import run
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    run()

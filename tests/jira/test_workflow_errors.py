@@ -1,7 +1,11 @@
 """Tests for workflow field validation and runtime failures."""
 
+from dataclasses import replace
+
 import httpx
 import pytest
+
+from simple_jira_mcp.jira.client import JiraClient
 
 
 @pytest.mark.parametrize(
@@ -145,8 +149,9 @@ async def test_transport_errors(
             return httpx.Response(204)
         return httpx.Response(200, json={"transitions": workflow_transitions})
 
-    client.config.token = "unique-secret-api-token"
-    client.config.timeout = 7.5
+    client = JiraClient(
+        replace(client.config, token="unique-secret-api-token", timeout=7.5)
+    )
     patch_async_client(httpx.MockTransport(handler))
     if stage == "comment":
         result = await client.add_comment("ONE-123", "Comment")

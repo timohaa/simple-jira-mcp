@@ -1,11 +1,13 @@
 """Get issue tool implementation."""
 
-from typing import Any
-
-from src.config import get_config
-from src.jira.client import JiraClient
-from src.utils.errors import CONFIG_NOT_FOUND, VALIDATION_ERROR, error_response
-from src.utils.validation import validate_issue_key
+from simple_jira_mcp.jira.client import get_client
+from simple_jira_mcp.utils.errors import (
+    VALIDATION_ERROR,
+    ToolResult,
+    error_response,
+    is_error,
+)
+from simple_jira_mcp.utils.validation import validate_issue_key
 
 
 async def get_issue(
@@ -13,7 +15,7 @@ async def get_issue(
     config_id: str | None = None,
     include_comments: bool = True,
     include_attachments: bool = True,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Fetch complete details for a single Jira issue.
 
     Args:
@@ -36,14 +38,9 @@ async def get_issue(
             f"Invalid issue key format: '{issue_key}'. Expected format: PROJECT-123",
         )
 
-    config = get_config(config_id)
-    if not config:
-        msg = f"Configuration '{config_id}' not found"
-        if not config_id:
-            msg = "No configuration available"
-        return error_response(CONFIG_NOT_FOUND, msg)
-
-    client = JiraClient(config)
+    client = get_client(config_id)
+    if is_error(client):
+        return client
     return await client.get_issue(
         issue_key,
         include_comments=include_comments,

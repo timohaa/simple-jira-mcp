@@ -1,9 +1,26 @@
 """Error handling utilities for Jira MCP Server."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
-# Type alias for error responses (matches TypedDict structure but is dict[str, Any])
-ErrorResponse = dict[str, Any]
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
+
+
+class ErrorDetail(TypedDict):
+    """Error code and human-readable message."""
+
+    code: str
+    message: str
+
+
+class ErrorResponse(TypedDict):
+    """In-band error payload returned by tools and client operations."""
+
+    isError: Literal[True]
+    error: ErrorDetail
+
+
+ToolResult = dict[str, Any] | ErrorResponse
 
 
 AUTH_FAILED = "AUTH_FAILED"
@@ -21,7 +38,12 @@ RATE_LIMITED = "RATE_LIMITED"
 JIRA_ERROR = "JIRA_ERROR"
 
 
-def error_response(code: str, message: str) -> dict[str, Any]:
+def is_error(result: object) -> "TypeIs[ErrorResponse]":
+    """Tell an error payload apart from a successful result or a client."""
+    return isinstance(result, dict) and result.get("isError") is True
+
+
+def error_response(code: str, message: str) -> ErrorResponse:
     """Create a standardized error response.
 
     Args:

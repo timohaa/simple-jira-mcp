@@ -2,15 +2,15 @@
 
 from typing import Any
 
-from src.config import get_config
-from src.jira.client import JiraClient
-from src.utils.errors import (
-    CONFIG_NOT_FOUND,
+from simple_jira_mcp.jira.client import JiraClient, get_client
+from simple_jira_mcp.utils.errors import (
     VALIDATION_ERROR,
     ErrorResponse,
+    ToolResult,
     error_response,
+    is_error,
 )
-from src.utils.validation import validate_issue_key
+from simple_jira_mcp.utils.validation import validate_issue_key
 
 
 def _get_client(issue_key: str, config_id: str | None) -> JiraClient | ErrorResponse:
@@ -22,24 +22,14 @@ def _get_client(issue_key: str, config_id: str | None) -> JiraClient | ErrorResp
             VALIDATION_ERROR,
             f"Invalid issue key format: '{issue_key}'. Expected format: PROJECT-123",
         )
-    config = get_config(config_id)
-    if not config:
-        message = (
-            f"Configuration '{config_id}' not found"
-            if config_id
-            else "No configuration available"
-        )
-        return error_response(CONFIG_NOT_FOUND, message)
-    return JiraClient(config)
+    return get_client(config_id)
 
 
-async def get_transitions(
-    issue_key: str, config_id: str | None = None
-) -> dict[str, Any]:
+async def get_transitions(issue_key: str, config_id: str | None = None) -> ToolResult:
     """Get available issue transitions, target statuses, and screen field metadata."""
     issue_key = issue_key.strip().upper()
     client = _get_client(issue_key, config_id)
-    if isinstance(client, dict):
+    if is_error(client):
         return client
     return await client.get_transitions(issue_key)
 
@@ -51,7 +41,7 @@ async def transition_issue(
     resolution: str | None = None,
     fields: dict[str, Any] | None = None,
     config_id: str | None = None,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Transition an issue by ID or case-insensitive transition/target-status name.
 
     Jira sets resolutiondate itself; the API cannot edit it. Record the actual
@@ -59,7 +49,7 @@ async def transition_issue(
     """
     issue_key = issue_key.strip().upper()
     client = _get_client(issue_key, config_id)
-    if isinstance(client, dict):
+    if is_error(client):
         return client
     if not transition.strip():
         return error_response(VALIDATION_ERROR, "Transition is required")
@@ -74,11 +64,11 @@ async def transition_issue(
 
 async def add_comment(
     issue_key: str, body: str, config_id: str | None = None
-) -> dict[str, Any]:
+) -> ToolResult:
     """Add a plain-text comment and return its ID and creation time."""
     issue_key = issue_key.strip().upper()
     client = _get_client(issue_key, config_id)
-    if isinstance(client, dict):
+    if is_error(client):
         return client
     if not body.strip():
         return error_response(VALIDATION_ERROR, "Comment body is required")

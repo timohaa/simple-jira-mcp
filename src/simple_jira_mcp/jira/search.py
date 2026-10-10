@@ -6,8 +6,8 @@ from typing import Any
 
 import httpx
 
-from src.jira.adf import adf_to_text
-from src.jira.base import (
+from simple_jira_mcp.jira.adf import adf_to_text
+from simple_jira_mcp.jira.base import (
     HTTP_BAD_REQUEST,
     HTTP_OK,
     HTTP_TOO_MANY_REQUESTS,
@@ -15,13 +15,14 @@ from src.jira.base import (
     SEARCH_PATH,
     JiraClientBase,
 )
-from src.utils.errors import (
+from simple_jira_mcp.utils.errors import (
     AUTH_FAILED,
     INVALID_JQL,
     JIRA_ERROR,
     RATE_LIMITED,
     ErrorResponse,
     error_response,
+    is_error,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,11 +61,9 @@ class SearchOperation(JiraClientBase):
         Returns:
             Search results or error response.
         """
-        logger.info(
-            "Executing JQL search (config_id=%s): %s",
-            getattr(self.config, "id", None),
-            params.jql,
-        )
+        logger.info("Executing JQL search (config_id=%s)", self.config.id)
+        # Query text can hold customer names or other private data.
+        logger.debug("JQL: %s", params.jql)
 
         url = f"{self.base_url}{SEARCH_PATH}"
         payload: dict[str, Any] = {
@@ -78,16 +77,11 @@ class SearchOperation(JiraClientBase):
             payload["nextPageToken"] = params.next_page_token
 
         try:
-            async with self._create_client() as client:
-                response = await client.post(
-                    url,
-                    json=payload,
-                    auth=self._get_auth(),
-                )
-                return self._handle_response(response, params.fields)
+            response = await self._http.post(url, json=payload)
         except httpx.RequestError as e:
             logger.exception("Request failed for JQL search")
             return error_response(JIRA_ERROR, f"Request failed: {e}")
+        return self._handle_response(response, params.fields)
 
     def _handle_response(
         self, response: httpx.Response, requested_fields: list[str]
@@ -109,7 +103,9 @@ class SearchOperation(JiraClientBase):
         if response.status_code != HTTP_OK:
             return error_response(JIRA_ERROR, f"Jira API error: {response.status_code}")
 
-        data = response.json()
+        data = self._json_object(response)
+        if is_error(data):
+            return data
         return self._transform_results(data, requested_fields)
 
     def _transform_results(
@@ -159,8 +155,8 @@ class SearchOperation(JiraClientBase):
             "resolution": ("resolution", self._extract_name(fields.get("resolution"))),
             "issuetype": ("issue_type", self._extract_name(fields.get("issuetype"))),
             "labels": ("labels", fields.get("labels", [])),
-            "created": ("created", self._format_date(fields.get("created"))),
-            "updated": ("updated", self._format_date(fields.get("updated"))),
+            "created": ("created", fields.get("created")),
+            "updated": ("updated", fields.get("updated")),
             "description": ("description", adf_to_text(fields.get("description"))),
             "comment": ("comments", self._extract_comments(fields.get("comment", {}))),
             "attachment": (

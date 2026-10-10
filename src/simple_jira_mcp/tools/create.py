@@ -1,12 +1,14 @@
 """Create issue tool implementation."""
 
-from typing import Any
-
-from src.config import get_config
-from src.jira.client import JiraClient
-from src.jira.create import CreateIssueParams
-from src.utils.errors import CONFIG_NOT_FOUND, VALIDATION_ERROR, error_response
-from src.utils.validation import validate_project_key
+from simple_jira_mcp.jira.client import get_client
+from simple_jira_mcp.jira.create import CreateIssueParams
+from simple_jira_mcp.utils.errors import (
+    VALIDATION_ERROR,
+    ToolResult,
+    error_response,
+    is_error,
+)
+from simple_jira_mcp.utils.validation import validate_project_key
 
 MAX_SUMMARY_LENGTH = 255
 
@@ -20,7 +22,7 @@ async def create_issue(
     labels: list[str] | None = None,
     assignee_account_id: str | None = None,
     config_id: str | None = None,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Create a new Jira issue.
 
     Args:
@@ -62,14 +64,9 @@ async def create_issue(
     if not issue_type or not issue_type.strip():
         issue_type = "Task"
 
-    config = get_config(config_id)
-    if not config:
-        msg = f"Configuration '{config_id}' not found"
-        if not config_id:
-            msg = "No configuration available"
-        return error_response(CONFIG_NOT_FOUND, msg)
-
-    client = JiraClient(config)
+    client = get_client(config_id)
+    if is_error(client):
+        return client
     params = CreateIssueParams(
         project_key=project_key,
         summary=summary,

@@ -6,9 +6,11 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from src.config import load_configs, reset_config_state
-from src.jira.adf import text_to_adf
-from src.tools import workflow
+from simple_jira_mcp.config import load_configs, reset_config_state
+from simple_jira_mcp.jira import client as jira_client
+from simple_jira_mcp.jira.adf import text_to_adf
+from simple_jira_mcp.jira.client import JiraClient
+from simple_jira_mcp.tools import workflow
 
 TOOL_ARGUMENTS = [
     ("get_transitions", {}),
@@ -77,7 +79,7 @@ async def test_config_and_key_normalization(
 ):
     method = AsyncMock(return_value={"success": True})
     constructor = []
-    real_client = workflow.JiraClient
+    real_client = JiraClient
 
     def make_client(config):
         constructor.append(config)
@@ -85,7 +87,7 @@ async def test_config_and_key_normalization(
         setattr(client, tool_name, method)
         return client
 
-    monkeypatch.setattr(workflow, "JiraClient", make_client)
+    monkeypatch.setattr(jira_client, "JiraClient", make_client)
     result = await getattr(workflow, tool_name)(
         " one-123 ", config_id=config_id, **kwargs
     )
@@ -108,7 +110,7 @@ async def test_config_and_key_normalization(
 )
 async def test_transition_input_validation(mock_config, monkeypatch, kwargs, message):
     method = AsyncMock()
-    monkeypatch.setattr(workflow.JiraClient, "transition_issue", method)
+    monkeypatch.setattr(JiraClient, "transition_issue", method)
     result = await workflow.transition_issue(
         "ONE-123", **{"transition": "Done", **kwargs}
     )
@@ -121,7 +123,7 @@ async def test_transition_input_validation(mock_config, monkeypatch, kwargs, mes
 @pytest.mark.parametrize("body", ["", "   ", "\n\n"])
 async def test_comment_body_required(mock_config, monkeypatch, body):
     method = AsyncMock()
-    monkeypatch.setattr(workflow.JiraClient, "add_comment", method)
+    monkeypatch.setattr(JiraClient, "add_comment", method)
     result = await workflow.add_comment("ONE-123", body)
 
     assert result["error"]["code"] == "VALIDATION_ERROR"
@@ -131,7 +133,7 @@ async def test_comment_body_required(mock_config, monkeypatch, body):
 async def test_transition_forwards_options(mock_config, monkeypatch):
     response = {"key": "ONE-123", "status": "Done", "resolution": "Fixed"}
     method = AsyncMock(return_value=response)
-    monkeypatch.setattr(workflow.JiraClient, "transition_issue", method)
+    monkeypatch.setattr(JiraClient, "transition_issue", method)
     result = await workflow.transition_issue(
         "ONE-123", "Done", "Completed on 2026-09-30", "Fixed", {"customfield_1": "Done"}
     )
@@ -152,7 +154,7 @@ async def test_runtime_error_forwarded(mock_config, monkeypatch, tool_name, kwar
         "isError": True,
         "error": {"code": "AUTH_FAILED", "message": "Invalid credentials"},
     }
-    monkeypatch.setattr(workflow.JiraClient, tool_name, AsyncMock(return_value=error))
+    monkeypatch.setattr(JiraClient, tool_name, AsyncMock(return_value=error))
 
     assert await getattr(workflow, tool_name)("ONE-123", **kwargs) == error
 
@@ -167,7 +169,7 @@ async def test_comment_tool_integration(mock_config, monkeypatch):
 
     transport = httpx.MockTransport(handler)
     monkeypatch.setattr(
-        "src.jira.workflow.httpx.AsyncClient",
+        "simple_jira_mcp.jira.base.httpx.AsyncClient",
         lambda **kwargs: real_async_client(transport=transport, **kwargs),
     )
     result = await workflow.add_comment(" one-123 ", "Body", config_id="second")

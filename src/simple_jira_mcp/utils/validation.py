@@ -1,6 +1,8 @@
 """Input validation utilities for Jira MCP Server."""
 
 import re
+from collections.abc import Sequence
+from typing import Literal, get_args
 
 ISSUE_KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
 PROJECT_KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9]+$")
@@ -10,24 +12,24 @@ MAX_LIMIT = 100
 MIN_LIMIT = 1
 DISALLOWED_JQL_PATTERN = re.compile(r"[;\r\n]")
 
-ALLOWED_SEARCH_FIELDS = frozenset(
-    [
-        "summary",
-        "status",
-        "assignee",
-        "priority",
-        "updated",
-        "created",
-        "labels",
-        "issuetype",
-        "reporter",
-        "resolution",
-        "description",
-        "comment",
-        "attachment",
-        "project",
-    ]
-)
+# Single source for the search_issues schema enum and the runtime allowlist.
+SearchField = Literal[
+    "summary",
+    "status",
+    "assignee",
+    "priority",
+    "updated",
+    "created",
+    "labels",
+    "issuetype",
+    "reporter",
+    "resolution",
+    "description",
+    "comment",
+    "attachment",
+    "project",
+]
+ALLOWED_SEARCH_FIELDS: frozenset[str] = frozenset(get_args(SearchField))
 
 BOUNDING_KEYWORDS = frozenset(
     [
@@ -127,7 +129,7 @@ def has_disallowed_jql_chars(jql: str) -> bool:
     return bool(DISALLOWED_JQL_PATTERN.search(jql))
 
 
-def validate_search_fields(fields: list[str]) -> tuple[bool, str | None]:
+def validate_search_fields(fields: Sequence[str]) -> tuple[bool, str | None]:
     """Validate requested search fields against an allowlist.
 
     Args:

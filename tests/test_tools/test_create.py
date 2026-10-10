@@ -7,10 +7,10 @@ from functools import partial
 import httpx
 import pytest
 
-import src.config
-from src.config import reset_config_state
-from src.tools.create import create_issue
-from src.utils.errors import INVALID_ISSUE_TYPE, INVALID_PRIORITY
+import simple_jira_mcp.config
+from simple_jira_mcp.config import reset_config_state
+from simple_jira_mcp.tools.create import create_issue
+from simple_jira_mcp.utils.errors import INVALID_ISSUE_TYPE, INVALID_PRIORITY
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ def mock_config(clean_config):
         }
     ]
     os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-    src.config.load_configs()
+    simple_jira_mcp.config.load_configs()
 
 
 @pytest.fixture
@@ -51,10 +51,7 @@ def patch_httpx_client(monkeypatch):
 
     def _apply(transport: httpx.MockTransport) -> None:
         async_client = partial(httpx.AsyncClient, transport=transport)
-        monkeypatch.setattr("src.jira.search.httpx.AsyncClient", async_client)
-        monkeypatch.setattr("src.jira.issue.httpx.AsyncClient", async_client)
-        monkeypatch.setattr("src.jira.create.httpx.AsyncClient", async_client)
-        monkeypatch.setattr("src.jira.attachment.httpx.AsyncClient", async_client)
+        monkeypatch.setattr("simple_jira_mcp.jira.base.httpx.AsyncClient", async_client)
 
     return _apply
 

@@ -86,6 +86,10 @@ defaulting to 30. Raise it for a slow instance or large attachments. It must be
 a positive number — the server refuses to start otherwise. See
 [API_REFERENCE.md](API_REFERENCE.md) for exactly what the budget covers.
 
+The server also refuses to start when a `url` does not begin with `https://`
+(the API token would otherwise travel in cleartext), when `id`, `url`,
+`email`, or `token` is empty, or when two entries share an `id`.
+
 ## AI Tool Integration
 
 In every snippet below, replace `/path/to/simple-jira-mcp` with your checkout
@@ -93,7 +97,15 @@ path. The `command` must be the venv interpreter created during installation —
 a bare `python` only works if the ambient interpreter already has `mcp` and
 `httpx` installed.
 
-`cwd` is not needed to start the server (since 0.3.0 `python -m src` resolves
+Installation also creates a `venv/bin/simple-jira-mcp` script. You can use
+its path as `command` with no `args` in place of the interpreter and
+`-m simple_jira_mcp`.
+
+Upgrading from 0.5.0 or earlier: the module was renamed, so change
+`"args": ["-m", "src"]` to `"args": ["-m", "simple_jira_mcp"]` in your client
+config and rerun `pip install -e ".[dev]"`.
+
+`cwd` is not needed to start the server (`python -m simple_jira_mcp` resolves
 from the installed package regardless of directory), but it sets where
 `download_attachment` saves files when `output_dir` is omitted. Without it,
 downloads land in whatever directory the client launched the server from.
@@ -111,7 +123,7 @@ downloads land in whatever directory the client launched the server from.
   "mcpServers": {
     "jira": {
       "command": "/path/to/simple-jira-mcp/venv/bin/python",
-      "args": ["-m", "src"],
+      "args": ["-m", "simple_jira_mcp"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
         "JIRA_CONFIG_JSON": "[{\"id\": \"work\", \"url\": \"https://your-domain.atlassian.net\", \"email\": \"your-email@example.com\", \"token\": \"your-api-token\"}]"
@@ -130,7 +142,7 @@ Edit `~/.claude.json`:
   "mcpServers": {
     "jira": {
       "command": "/path/to/simple-jira-mcp/venv/bin/python",
-      "args": ["-m", "src"],
+      "args": ["-m", "simple_jira_mcp"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
         "JIRA_CONFIG_JSON": "[{\"id\": \"work\", \"url\": \"https://your-domain.atlassian.net\", \"email\": \"your-email@example.com\", \"token\": \"your-api-token\"}]"
@@ -151,7 +163,7 @@ Config file: `~/.gemini/settings.json`
   "mcpServers": {
     "jira": {
       "command": "/path/to/simple-jira-mcp/venv/bin/python",
-      "args": ["-m", "src"],
+      "args": ["-m", "simple_jira_mcp"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
         "JIRA_CONFIG_JSON": "[{\"id\": \"work\", \"url\": \"https://your-domain.atlassian.net\", \"email\": \"your-email@example.com\", \"token\": \"your-api-token\"}]"
@@ -170,7 +182,7 @@ Config file: `~/.codex/config.toml`
 ```toml
 [mcp_servers.jira]
 command = "/path/to/simple-jira-mcp/venv/bin/python"
-args = ["-m", "src"]
+args = ["-m", "simple_jira_mcp"]
 cwd = "/path/to/simple-jira-mcp"
 
 [mcp_servers.jira.env]
@@ -189,7 +201,7 @@ JIRA_CONFIG_JSON = '[{"id": "work", "url": "https://your-domain.atlassian.net", 
   "mcpServers": {
     "jira": {
       "command": "/path/to/simple-jira-mcp/venv/bin/python",
-      "args": ["-m", "src"],
+      "args": ["-m", "simple_jira_mcp"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
         "JIRA_CONFIG_JSON": "[{\"id\": \"work\", \"url\": \"https://your-domain.atlassian.net\", \"email\": \"your-email@example.com\", \"token\": \"your-api-token\"}]"
@@ -213,7 +225,7 @@ Access via Cursor Settings > MCP.
   "mcpServers": {
     "jira": {
       "command": "/path/to/simple-jira-mcp/venv/bin/python",
-      "args": ["-m", "src"],
+      "args": ["-m", "simple_jira_mcp"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
         "JIRA_CONFIG_JSON": "[{\"id\": \"work\", \"url\": \"https://your-domain.atlassian.net\", \"email\": \"your-email@example.com\", \"token\": \"your-api-token\"}]"
@@ -234,7 +246,7 @@ Config file: `.vscode/mcp.json` (project-level)
   "servers": {
     "jira": {
       "command": "/path/to/simple-jira-mcp/venv/bin/python",
-      "args": ["-m", "src"],
+      "args": ["-m", "simple_jira_mcp"],
       "cwd": "/path/to/simple-jira-mcp",
       "env": {
         "JIRA_CONFIG_JSON": "[{\"id\": \"work\", \"url\": \"https://your-domain.atlassian.net\", \"email\": \"your-email@example.com\", \"token\": \"your-api-token\"}]"
@@ -255,7 +267,7 @@ Add to Zed `settings.json`:
   "context_servers": {
     "jira": {
       "command": "/path/to/simple-jira-mcp/venv/bin/python",
-      "args": ["-m", "src"],
+      "args": ["-m", "simple_jira_mcp"],
       "env": {
         "JIRA_CONFIG_JSON": "[{\"id\": \"work\", \"url\": \"https://your-domain.atlassian.net\", \"email\": \"your-email@example.com\", \"token\": \"your-api-token\"}]"
       }
@@ -328,7 +340,10 @@ On Windows, use full paths with backslashes:
   creation time.
 - `download_attachment`: `output_dir` must exist when provided (defaults to
   the current working directory); files are saved to
-  `<output_dir>/<issue_key>/` with sanitized filenames.
+  `<output_dir>/<issue_key>/` with sanitized filenames. If the filename is
+  already taken, the attachment ID is appended (`log-10042.txt`).
+- Errors: a failed call sets the MCP result's `isError` flag and carries
+  `{"isError": true, "error": {"code": ..., "message": ...}}` as its content.
 
 ## Reference
 

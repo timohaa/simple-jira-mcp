@@ -1,6 +1,6 @@
 """Tests for ADF conversion utilities."""
 
-from src.jira.adf import adf_to_text, text_to_adf
+from simple_jira_mcp.jira.adf import adf_to_text, text_to_adf
 
 
 class TestAdfToText:

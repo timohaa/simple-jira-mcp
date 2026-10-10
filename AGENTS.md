@@ -3,8 +3,8 @@
 ## Project
 
 MCP server providing Jira Cloud integration for AI agents via stdio transport.
-Built with FastMCP (Python). See `API_REFERENCE.md` for tool schemas, error
-codes, and JQL patterns.
+Built with the MCP Python SDK 2.x (`MCPServer`). See `API_REFERENCE.md` for
+tool schemas, error codes, and JQL patterns.
 
 ## Critical: No stdout
 
@@ -52,12 +52,13 @@ searches.
 
 ## Key Files
 
-- `src/server.py` — MCP entry point (FastMCP)
-- `src/config.py` — Configuration loading
-- `src/tools/` — Tool implementations (one file per tool group)
-- `src/jira/client.py` — Jira REST API v3 client
-- `src/jira/adf.py` — ADF ↔ plain text conversion
-- `src/utils/` — Validation and error handling
+- `src/simple_jira_mcp/server.py` — MCP entry point, tool schemas
+- `src/simple_jira_mcp/config.py` — Configuration loading
+- `src/simple_jira_mcp/tools/` — Tool implementations (one file per tool group)
+- `src/simple_jira_mcp/jira/client.py` — Jira REST API v3 client; `get_client()`
+  returns the pooled client for a config
+- `src/simple_jira_mcp/jira/adf.py` — ADF ↔ plain text conversion
+- `src/simple_jira_mcp/utils/` — Validation and error handling
 
 ## Jira API Gotchas
 
@@ -80,14 +81,16 @@ These are non-obvious behaviors that cause real bugs:
 
 - **ADF, not plain text**: Jira Cloud uses Atlassian Document Format for
   descriptions/comments. Convert ADF → plain text when returning data,
-  plain text → ADF when creating. See `src/jira/adf.py`.
+  plain text → ADF when creating. See `jira/adf.py`.
 
 ## Error Handling
 
-Two-tier model: protocol errors (JSON-RPC) for invalid tool calls, and an
-in-band `isError: true` field in the returned payload (built by
-`error_response()` in `src/utils/errors.py`) for runtime failures — tools
-never raise, so the MCP protocol-level error flag is not set.
+Functions in `tools/` and `jira/` never raise for runtime failures. They
+return the payload built by `error_response()` in
+`src/simple_jira_mcp/utils/errors.py`; test for it with `is_error()`.
+`_result()` in `server.py` turns that payload into a `CallToolResult` with
+the protocol `is_error` flag set, keeping the JSON body as content.
+Schema violations are rejected by the SDK before the tool function runs.
 Full error code reference: `API_REFERENCE.md`.
 
 ## Refactoring Safety

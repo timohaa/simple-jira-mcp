@@ -14,7 +14,8 @@ All code must pass checks before submission:
 ./check.sh
 ```
 
-This runs Ruff (linting), Mypy (type checking), and Pytest (tests).
+This runs Ruff (linting), Mypy (type checking), and Pytest (tests). GitHub
+Actions runs the same script on every push and pull request.
 
 ## Guidelines
 

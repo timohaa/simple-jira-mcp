@@ -5,7 +5,8 @@ import os
 
 import pytest
 
-from src.config import (
+from simple_jira_mcp.config import (
+    JiraConfig,
     get_config,
     get_default_config_id,
     load_configs,
@@ -213,3 +214,70 @@ class TestGetDefaultConfigId:
 
     def test_returns_none_when_no_configs(self, clean_config):
         assert get_default_config_id() is None
+
+
+def _load(*overrides):
+    """Load configs built from a valid base entry plus per-entry overrides."""
+    base = {
+        "id": "test",
+        "url": "https://test.atlassian.net",
+        "email": "test@example.com",
+        "token": "test-token",
+    }
+    os.environ["JIRA_CONFIG_JSON"] = json.dumps([{**base, **o} for o in overrides])
+    return load_configs()
+
+
+class TestConfigValidation:
+    @pytest.mark.parametrize(
+        "url", ["http://test.atlassian.net", "ftp://x", "test.atlassian.net"]
+    )
+    def test_rejects_non_https_url(self, clean_config, url):
+        with pytest.raises(ValueError, match="must start with https://"):
+            _load({"url": url})
+
+    def test_accepts_uppercase_scheme(self, clean_config):
+        assert _load({"url": "HTTPS://test.atlassian.net/"})[0].url == (
+            "HTTPS://test.atlassian.net"
+        )
+
+    @pytest.mark.parametrize("field", ["id", "url", "email", "token"])
+    @pytest.mark.parametrize("value", ["", "   "])
+    def test_rejects_empty_field(self, clean_config, field, value):
+        with pytest.raises(ValueError, match=f"'{field}' in config must not be empty"):
+            _load({field: value})
+
+    def test_rejects_duplicate_ids(self, clean_config):
+        with pytest.raises(ValueError, match="Duplicate config id 'test'"):
+            _load({}, {"url": "https://other.atlassian.net"})
+
+    def test_failed_load_keeps_previous_configs(self, clean_config):
+        _load({"id": "first"})
+
+        with pytest.raises(ValueError, match="Duplicate"):
+            _load({}, {})
+
+        assert get_default_config_id() == "first"
+
+    def test_rejects_non_object_entry(self, clean_config):
+        os.environ["JIRA_CONFIG_JSON"] = json.dumps(["nope"])
+        with pytest.raises(ValueError, match="must be an object"):
+            load_configs()
+
+
+class TestJiraConfig:
+    def test_repr_hides_token(self):
+        config = JiraConfig(
+            id="a", url="https://a.atlassian.net", email="e", token="s3cret"
+        )
+
+        assert "s3cret" not in repr(config)
+        assert "s3cret" not in str(config)
+
+    def test_is_immutable(self):
+        config = JiraConfig(
+            id="a", url="https://a.atlassian.net", email="e", token="s3cret"
+        )
+
+        with pytest.raises(AttributeError):
+            config.token = "other"  # type: ignore[misc]

@@ -1,16 +1,17 @@
 """Search issues tool implementation."""
 
-from typing import Any
+from collections.abc import Sequence
 
-from src.config import get_config
-from src.jira.client import JiraClient
-from src.utils.errors import (
-    CONFIG_NOT_FOUND,
+from simple_jira_mcp.jira.client import get_client
+from simple_jira_mcp.utils.errors import (
     UNBOUNDED_QUERY,
     VALIDATION_ERROR,
+    ErrorResponse,
+    ToolResult,
     error_response,
+    is_error,
 )
-from src.utils.validation import (
+from simple_jira_mcp.utils.validation import (
     BOUNDING_KEYWORDS,
     has_disallowed_jql_chars,
     is_bounded_query,
@@ -19,7 +20,7 @@ from src.utils.validation import (
 )
 
 
-def _validate_jql(jql: str) -> dict[str, Any] | None:
+def _validate_jql(jql: str) -> ErrorResponse | None:
     """Validate JQL query, returning error response or None if valid."""
     if not jql or not jql.strip():
         return error_response(VALIDATION_ERROR, "JQL query is required")
@@ -44,8 +45,8 @@ def _validate_jql(jql: str) -> dict[str, Any] | None:
 def _validate_search_params(
     jql: str,
     limit: int,
-    fields: list[str] | None,
-) -> dict[str, Any] | None:
+    fields: Sequence[str] | None,
+) -> ErrorResponse | None:
     """Validate search parameters, returning error response or None if valid."""
     jql_error = _validate_jql(jql)
     if jql_error:
@@ -70,8 +71,8 @@ async def search_issues(
     config_id: str | None = None,
     limit: int = 50,
     next_page_token: str | None = None,
-    fields: list[str] | None = None,
-) -> dict[str, Any]:
+    fields: Sequence[str] | None = None,
+) -> ToolResult:
     """Search for Jira issues using JQL.
 
     Args:
@@ -89,18 +90,12 @@ async def search_issues(
     if validation_error:
         return validation_error
 
-    config = get_config(config_id)
-    if not config:
-        if config_id:
-            msg = f"Configuration '{config_id}' not found"
-        else:
-            msg = "No configuration available"
-        return error_response(CONFIG_NOT_FOUND, msg)
-
-    client = JiraClient(config)
+    client = get_client(config_id)
+    if is_error(client):
+        return client
     return await client.search(
         jql,
         max_results=limit,
         next_page_token=next_page_token,
-        fields=fields,
+        fields=None if fields is None else list(fields),
     )

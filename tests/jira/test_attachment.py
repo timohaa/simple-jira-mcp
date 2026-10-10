@@ -73,8 +73,8 @@ async def test_download_attachment_write_failure_returns_error(
     patch_async_client(transport)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Occupy the target path with a directory so write_bytes fails
-        (Path(tmpdir) / "ONE-123" / "file.txt").mkdir(parents=True)
+        # Occupy the issue directory's path with a file so mkdir fails
+        (Path(tmpdir) / "ONE-123").write_text("in the way")
         result = await client.download_attachment(
             "12345", Path(tmpdir), "ONE-123", "file.txt"
         )
@@ -179,3 +179,82 @@ async def test_download_attachment_request_error(client, patch_async_client):
     assert result["isError"] is True
     assert result["error"]["code"] == "DOWNLOAD_FAILED"
     assert "Download failed" in result["error"]["message"]
+
+
+async def test_same_named_attachments_do_not_overwrite(client, patch_async_client):
+    """A second attachment with a taken filename gets its ID in the name."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=request.url.path.rsplit("/", 1)[-1].encode())
+
+    patch_async_client(httpx.MockTransport(handler))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        first = await client.download_attachment(
+            "111", Path(tmpdir), "ONE-123", "log.txt"
+        )
+        second = await client.download_attachment(
+            "222", Path(tmpdir), "ONE-123", "log.txt"
+        )
+        again = await client.download_attachment(
+            "222", Path(tmpdir), "ONE-123", "log.txt"
+        )
+
+        assert first["filename"] == "log.txt"
+        assert second["filename"] == "log-222.txt"
+        assert again["path"] == second["path"]
+        assert Path(first["path"]).read_bytes() == b"111"
+        assert Path(second["path"]).read_bytes() == b"222"
+
+
+async def test_download_streams_body_and_reports_size(client, patch_async_client):
+    payload = b"x" * 300_000
+
+    patch_async_client(
+        httpx.MockTransport(
+            lambda _: httpx.Response(
+                200, content=payload, headers={"content-type": "application/zip"}
+            )
+        )
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = await client.download_attachment(
+            "1", Path(tmpdir), "ONE-123", "big.zip"
+        )
+
+        assert Path(result["path"]).read_bytes() == payload
+        assert result["size_kb"] == round(len(payload) / 1024, 2)
+        assert result["mime_type"] == "application/zip"
+
+
+async def test_interrupted_download_leaves_no_partial_file(client, patch_async_client):
+    class BrokenStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield b"partial"
+            raise httpx.ReadError("connection dropped")
+
+    patch_async_client(
+        httpx.MockTransport(lambda _: httpx.Response(200, stream=BrokenStream()))
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = await client.download_attachment(
+            "1", Path(tmpdir), "ONE-123", "file.bin"
+        )
+
+        assert result["error"]["code"] == "DOWNLOAD_FAILED"
+        assert "connection dropped" in result["error"]["message"]
+        assert list((Path(tmpdir) / "ONE-123").iterdir()) == []
+
+
+async def test_error_status_creates_no_directory(client, patch_async_client):
+    patch_async_client(httpx.MockTransport(lambda _: httpx.Response(404)))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = await client.download_attachment(
+            "1", Path(tmpdir), "ONE-123", "file.bin"
+        )
+
+        assert result["error"]["code"] == "ATTACHMENT_NOT_FOUND"
+        assert list(Path(tmpdir).iterdir()) == []

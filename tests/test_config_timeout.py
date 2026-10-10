@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from src.config import DEFAULT_TIMEOUT, load_configs, reset_config_state
+from simple_jira_mcp.config import DEFAULT_TIMEOUT, load_configs, reset_config_state
 
 
 @pytest.fixture

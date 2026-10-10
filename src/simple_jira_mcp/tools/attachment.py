@@ -1,24 +1,24 @@
 """Download attachment tool implementation."""
 
 from pathlib import Path
-from typing import Any
 
-from src.config import get_config
-from src.jira.client import JiraClient
-from src.utils.errors import (
+from simple_jira_mcp.jira.client import get_client
+from simple_jira_mcp.utils.errors import (
     ATTACHMENT_NOT_FOUND,
-    CONFIG_NOT_FOUND,
     VALIDATION_ERROR,
+    ErrorResponse,
+    ToolResult,
     error_response,
+    is_error,
 )
-from src.utils.validation import validate_attachment_id, validate_issue_key
+from simple_jira_mcp.utils.validation import validate_attachment_id, validate_issue_key
 
 
 def _validate_inputs(  # noqa: PLR0911
     issue_key: str,
     attachment_id: str,
     output_dir: str | None,
-) -> tuple[str, str, Path] | dict[str, Any]:
+) -> tuple[str, str, Path] | ErrorResponse:
     """Validate and normalize all inputs.
 
     Returns:
@@ -65,7 +65,7 @@ async def download_attachment(
     attachment_id: str,
     output_dir: str | None = None,
     config_id: str | None = None,
-) -> dict[str, Any]:
+) -> ToolResult:
     """Download an attachment from a Jira issue.
 
     Args:
@@ -78,24 +78,20 @@ async def download_attachment(
         Download result or error response.
     """
     validation_result = _validate_inputs(issue_key, attachment_id, output_dir)
-    if isinstance(validation_result, dict):
+    if not isinstance(validation_result, tuple):
         return validation_result
     normalized_key, normalized_att_id, out_path = validation_result
 
-    config = get_config(config_id)
-    if not config:
-        msg = f"Configuration '{config_id}' not found"
-        if not config_id:
-            msg = "No configuration available"
-        return error_response(CONFIG_NOT_FOUND, msg)
+    client = get_client(config_id)
+    if is_error(client):
+        return client
 
     # Fetch the issue first to resolve the attachment filename from its metadata
-    client = JiraClient(config)
     issue_result = await client.get_issue(
         normalized_key, include_comments=False, include_attachments=True
     )
 
-    if isinstance(issue_result, dict) and issue_result.get("isError"):
+    if is_error(issue_result):
         return issue_result
 
     attachments = issue_result.get("attachments", [])

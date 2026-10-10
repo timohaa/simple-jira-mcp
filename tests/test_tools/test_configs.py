@@ -5,9 +5,9 @@ import os
 
 import pytest
 
-import src.config
-from src.config import DEFAULT_TIMEOUT, reset_config_state
-from src.tools.configs import list_configs
+import simple_jira_mcp.config
+from simple_jira_mcp.config import DEFAULT_TIMEOUT, reset_config_state
+from simple_jira_mcp.tools.configs import list_configs
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def single_config(clean_config):
         }
     ]
     os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-    src.config.load_configs()
+    simple_jira_mcp.config.load_configs()
 
 
 @pytest.fixture
@@ -60,7 +60,7 @@ def multi_config(clean_config):
         },
     ]
     os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-    src.config.load_configs()
+    simple_jira_mcp.config.load_configs()
 
 
 class TestListConfigs:
@@ -100,7 +100,7 @@ class TestListConfigs:
             }
         ]
         os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-        src.config.load_configs()
+        simple_jira_mcp.config.load_configs()
 
         result = await list_configs()
 
