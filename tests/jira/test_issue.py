@@ -33,6 +33,7 @@ async def test_get_issue_transforms_data(client, patch_async_client):
                 "created": "2025-01-01",
                 "updated": "2025-01-02",
                 "resolutiondate": None,
+                "duedate": "2025-02-01",
                 "comment": {
                     "comments": [
                         {
@@ -70,6 +71,7 @@ async def test_get_issue_transforms_data(client, patch_async_client):
 
     assert recorded["url"].endswith("/rest/api/3/issue/ONE-123")
     assert result["description"] == "Description text"
+    assert result["duedate"] == "2025-02-01"
     assert result["comments"][0]["body"] == "Hi"
     attachment = result["attachments"][0]
     assert attachment["filename"] == "file.txt"

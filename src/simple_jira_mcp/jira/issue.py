@@ -100,6 +100,7 @@ class IssueOperation(JiraClientBase):
             "created": fields.get("created"),
             "updated": fields.get("updated"),
             "resolved": fields.get("resolutiondate"),
+            "duedate": fields.get("duedate"),
             "url": f"{self.base_url}/browse/{key}",
         }
 

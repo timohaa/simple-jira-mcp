@@ -70,8 +70,7 @@ returns `ISSUE_NOT_FOUND`.
 - Inputs: `issue_key` (PROJECT-123), `config_id` (optional),
   `include_comments` (default true), `include_attachments` (default true).
 - Returns: `key`, plain-text summary/description, reporter/assignee, status,
-  priority, issue_type, labels, created/updated/resolved dates, url,
-  optional `comments`
+  priority, issue_type, labels, created/updated/resolved dates, `duedate` (`YYYY-MM-DD` or null), url, optional `comments`
   (`author`, `created`, `body`) and `attachments` (`id`, `filename`, `size_kb`,
   `mime_type`, `created`). Pass an attachment `id` to `download_attachment`.
 - Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,

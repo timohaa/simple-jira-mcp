@@ -116,6 +116,7 @@ class TestGetIssueSuccess:
             "created": "2025-01-15",
             "updated": "2025-01-20",
             "resolved": None,
+            "duedate": None,
             "url": "https://test.atlassian.net/browse/ONE-123",
             "comments": [],
             "attachments": [],
