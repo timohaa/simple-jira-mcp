@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   target path already exists, so same-named attachments no longer overwrite
   each other
 - JQL text is logged at DEBUG; INFO logs record only that a search ran
-- Dependencies have version bounds; `requirements.txt` and
+- Runtime and dev dependencies have version bounds; `requirements.txt` and
   `requirements-dev.txt` are removed in favor of `pyproject.toml`
 
 ### Fixed

@@ -46,7 +46,7 @@ class SearchParams:
     jql: str
     max_results: int = 50
     next_page_token: str | None = None
-    fields: list[str] = field(default_factory=lambda: DEFAULT_SEARCH_FIELDS.copy())
+    fields: list[str] = field(default_factory=DEFAULT_SEARCH_FIELDS.copy)
 
 
 class SearchOperation(JiraClientBase):
