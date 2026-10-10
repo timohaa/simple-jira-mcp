@@ -105,7 +105,8 @@ returns `ISSUE_NOT_FOUND`.
 - Returns: `{"key": str, "url": str, "updated": [field_id, ...]}`. `updated`
   lists the field IDs sent to Jira, sorted.
 - Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR` (including fields Jira rejects),
-  `AUTH_FAILED`, `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
+  `INVALID_PRIORITY`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`, `RATE_LIMITED`,
+  `JIRA_ERROR`. `INVALID_PRIORITY` names the rejected `priority` and lists allowed names from `GET /rest/api/3/issue/{key}/editmeta`.
 
 Example inputs:
 

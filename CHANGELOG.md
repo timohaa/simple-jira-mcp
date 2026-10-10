@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `get_issue` returns `duedate`
 
+### Changed
+
+- `update_issue` returns `INVALID_PRIORITY` instead of `VALIDATION_ERROR` when
+  Jira rejects the `priority` parameter. The message names the priority and
+  lists the ones the issue accepts
+
 ## [0.7.0] - 2026-10-11
 
 ### Added

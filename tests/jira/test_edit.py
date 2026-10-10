@@ -100,6 +100,53 @@ async def test_update_issue_rejects_without_request(client, requests, params, me
     assert requests == []
 
 
+PRIORITY_REJECTED = httpx.Response(
+    400,
+    json={"errors": {"priority": "Specify the Priority (name) in the string format"}},
+)
+
+
+INVALID = "Priority 'Urgent' is not valid for ONE-123."
+ALLOWED = [{"name": "High"}, {"name": "Low"}]
+EDITMETA = {"fields": {"priority": {"allowedValues": ALLOWED}}}
+
+
+@pytest.mark.parametrize(
+    "editmeta,message",
+    [
+        (httpx.Response(200, json=EDITMETA), f"{INVALID} Valid priorities: High, Low."),
+        (httpx.Response(200, json={"fields": {}}), INVALID),
+        (httpx.Response(500), INVALID),
+    ],
+)
+async def test_update_issue_unknown_priority(
+    client, patch_async_client, editmeta, message
+):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return PRIORITY_REJECTED if request.method == "PUT" else editmeta
+
+    patch_async_client(httpx.MockTransport(handler))
+    result = await client.update_issue("ONE-123", UpdateIssueParams(priority="Urgent"))
+
+    assert [request.method for request in requests] == ["PUT", "GET"]
+    assert requests[1].url.path == "/rest/api/3/issue/ONE-123/editmeta"
+    assert result["error"] == {"code": "INVALID_PRIORITY", "message": message}
+
+
+async def test_update_issue_raw_priority_error_passes_through(
+    client, patch_async_client
+):
+    patch_async_client(httpx.MockTransport(lambda _: PRIORITY_REJECTED))
+    params = UpdateIssueParams(fields={"priority": {"id": "99"}})
+    result = await client.update_issue("ONE-123", params)
+
+    assert result["error"]["code"] == "VALIDATION_ERROR"
+    assert result["error"]["message"].startswith("priority: ")
+
+
 @pytest.mark.parametrize("delete_subtasks,expected", [(False, "false"), (True, "true")])
 async def test_delete_issue_request_and_result(
     client, requests, delete_subtasks, expected
