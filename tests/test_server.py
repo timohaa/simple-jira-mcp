@@ -7,145 +7,10 @@ from unittest.mock import AsyncMock
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 
-from simple_jira_mcp import server
+from simple_jira_mcp import app, server, write_tools
 from simple_jira_mcp.config import reset_config_state
 from simple_jira_mcp.utils.validation import ALLOWED_SEARCH_FIELDS
-
-# tool name -> (all properties, required properties)
-SCHEMAS = {
-    "list_configs": (set(), set()),
-    "search_issues": (
-        {"jql", "config_id", "limit", "next_page_token", "fields"},
-        {"jql"},
-    ),
-    "get_issue": (
-        {"issue_key", "config_id", "include_comments", "include_attachments"},
-        {"issue_key"},
-    ),
-    "create_issue": (
-        {
-            "project_key",
-            "summary",
-            "issue_type",
-            "description",
-            "priority",
-            "labels",
-            "assignee_account_id",
-            "config_id",
-        },
-        {"project_key", "summary"},
-    ),
-    "get_transitions": ({"issue_key", "config_id"}, {"issue_key"}),
-    "transition_issue": (
-        {"issue_key", "transition", "comment", "resolution", "fields", "config_id"},
-        {"issue_key", "transition"},
-    ),
-    "add_comment": ({"issue_key", "body", "config_id"}, {"issue_key", "body"}),
-    "download_attachment": (
-        {"issue_key", "attachment_id", "output_dir", "config_id"},
-        {"issue_key", "attachment_id"},
-    ),
-}
-
-# (tool name, arguments, expected positional args, expected keyword args)
-CALLS = [
-    ("list_configs", {}, (), {}),
-    (
-        "search_issues",
-        {
-            "jql": "project = ONE",
-            "config_id": "work",
-            "limit": 10,
-            "next_page_token": "tok",
-            "fields": ["summary"],
-        },
-        ("project = ONE",),
-        {
-            "config_id": "work",
-            "limit": 10,
-            "next_page_token": "tok",
-            "fields": ["summary"],
-        },
-    ),
-    (
-        "search_issues",
-        {"jql": "project = ONE"},
-        ("project = ONE",),
-        {"config_id": None, "limit": 50, "next_page_token": None, "fields": None},
-    ),
-    (
-        "get_issue",
-        {"issue_key": "ONE-123", "config_id": "work", "include_comments": False},
-        ("ONE-123",),
-        {"config_id": "work", "include_comments": False, "include_attachments": True},
-    ),
-    (
-        "create_issue",
-        {
-            "project_key": "ONE",
-            "summary": "Title",
-            "issue_type": "Bug",
-            "description": "Body",
-            "priority": "High",
-            "labels": ["a"],
-            "assignee_account_id": "acc",
-            "config_id": "work",
-        },
-        ("ONE", "Title"),
-        {
-            "issue_type": "Bug",
-            "description": "Body",
-            "priority": "High",
-            "labels": ["a"],
-            "assignee_account_id": "acc",
-            "config_id": "work",
-        },
-    ),
-    (
-        "get_transitions",
-        {"issue_key": "ONE-123", "config_id": "work"},
-        ("ONE-123",),
-        {"config_id": "work"},
-    ),
-    (
-        "transition_issue",
-        {
-            "issue_key": "ONE-123",
-            "transition": "Done",
-            "comment": "Completed yesterday",
-            "resolution": "Fixed",
-            "fields": {"customfield_1": "Done"},
-            "config_id": "work",
-        },
-        ("ONE-123", "Done"),
-        {
-            "comment": "Completed yesterday",
-            "resolution": "Fixed",
-            "fields": {"customfield_1": "Done"},
-            "config_id": "work",
-        },
-    ),
-    (
-        "add_comment",
-        {"issue_key": "ONE-123", "body": "Comment", "config_id": "work"},
-        ("ONE-123", "Comment"),
-        {"config_id": "work"},
-    ),
-    (
-        "download_attachment",
-        {
-            "issue_key": "ONE-123",
-            "attachment_id": "42",
-            "output_dir": "out",
-            "config_id": "work",
-        },
-        ("ONE-123", "42"),
-        {"output_dir": "out", "config_id": "work"},
-    ),
-]
-
-
-READ_ONLY_TOOLS = {"list_configs", "search_issues", "get_issue", "get_transitions"}
+from tests.server_cases import CALLS, DESTRUCTIVE_TOOLS, READ_ONLY_TOOLS, SCHEMAS
 
 
 async def test_tool_schemas():
@@ -164,8 +29,9 @@ async def test_tool_annotations():
         read_only = tool.name in READ_ONLY_TOOLS
         assert tool.annotations.read_only_hint is read_only
         if not read_only:
-            assert tool.annotations.destructive_hint is False
-            assert tool.annotations.idempotent_hint is False
+            destructive = tool.name in DESTRUCTIVE_TOOLS
+            assert tool.annotations.destructive_hint is destructive
+            assert tool.annotations.idempotent_hint is destructive
         assert tool.annotations.open_world_hint is (tool.name != "list_configs")
 
 
@@ -221,7 +87,8 @@ async def test_mcp_calls(
         else {"status": "Done"}
     )
     method = AsyncMock(return_value=response)
-    monkeypatch.setattr(server, f"_{tool_name}", method)
+    module = server if tool_name in READ_ONLY_TOOLS else write_tools
+    monkeypatch.setattr(module, f"_{tool_name}", method)
 
     result = await server.mcp.call_tool(tool_name, arguments)
 
@@ -234,9 +101,9 @@ async def test_mcp_calls(
 
 async def test_lifespan_closes_pooled_clients(monkeypatch):
     close = AsyncMock()
-    monkeypatch.setattr(server, "close_clients", close)
+    monkeypatch.setattr(app, "close_clients", close)
 
-    async with server._lifespan(server.mcp):
+    async with app._lifespan(app.mcp):
         close.assert_not_awaited()
 
     close.assert_awaited_once()

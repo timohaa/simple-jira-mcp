@@ -57,7 +57,12 @@ searches.
 
 ## Key Files
 
-- `src/simple_jira_mcp/server.py` — MCP entry point, tool registration
+- `src/simple_jira_mcp/app.py` — `MCPServer` instance and helpers shared by
+  tool registrations
+- `src/simple_jira_mcp/server.py` — MCP entry point, read-only tool
+  registration
+- `src/simple_jira_mcp/write_tools.py` — Registration of tools that change
+  Jira or local files
 - `src/simple_jira_mcp/schemas.py` — `Annotated` parameter types that give
   tool schemas their descriptions
 - `src/simple_jira_mcp/config.py` — Configuration loading
@@ -95,7 +100,7 @@ These are non-obvious behaviors that cause real bugs:
 Functions in `tools/` and `jira/` never raise for runtime failures. They
 return the payload built by `error_response()` in
 `src/simple_jira_mcp/utils/errors.py`; test for it with `is_error()`.
-`_result()` in `server.py` turns that payload into a `CallToolResult` with
+`tool_result()` in `app.py` turns that payload into a `CallToolResult` with
 the protocol `is_error` flag set, keeping the JSON body as content.
 Schema violations are rejected by the SDK before the tool function runs.
 Full error code reference: `API_REFERENCE.md`.

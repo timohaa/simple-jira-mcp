@@ -7,7 +7,15 @@ import httpx
 
 from simple_jira_mcp.config import JiraConfig
 from simple_jira_mcp.jira.adf import adf_to_text
-from simple_jira_mcp.utils.errors import JIRA_ERROR, ErrorResponse, error_response
+from simple_jira_mcp.utils.errors import (
+    AUTH_FAILED,
+    ISSUE_NOT_FOUND,
+    JIRA_ERROR,
+    RATE_LIMITED,
+    VALIDATION_ERROR,
+    ErrorResponse,
+    error_response,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +85,53 @@ class JiraClientBase:
     def _http(self) -> httpx.AsyncClient:
         """The session's HTTP client."""
         return self._session.client
+
+    async def _request(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict[str, str] | None = None,
+        payload: dict[str, Any] | None = None,
+        success_status: int = HTTP_OK,
+    ) -> dict[str, Any] | ErrorResponse:
+        """Send an issue request and map the response to a result or error."""
+        try:
+            response = await self._http.request(
+                method, url, params=params, json=payload
+            )
+        except httpx.RequestError as e:
+            logger.exception("Request failed for %s %s", method, url)
+            return error_response(JIRA_ERROR, f"Request failed: {e}")
+
+        status_errors = {
+            HTTP_UNAUTHORIZED: (AUTH_FAILED, "Invalid credentials"),
+            HTTP_NOT_FOUND: (ISSUE_NOT_FOUND, "Issue not found"),
+            HTTP_TOO_MANY_REQUESTS: (RATE_LIMITED, "Too many requests to Jira API"),
+        }
+        if response.status_code in status_errors:
+            code, message = status_errors[response.status_code]
+            return error_response(code, message)
+        if response.status_code == success_status:
+            if success_status == HTTP_NO_CONTENT:
+                return {}
+            return self._json_object(response)
+
+        message = f"Jira API error: {response.status_code}"
+        try:
+            data = response.json()
+            errors = data.get("errors", {})
+            messages = data.get("errorMessages", [])
+            if errors:
+                message = ", ".join(f"{key}: {value}" for key, value in errors.items())
+            elif messages:
+                message = str(messages[0])
+        except (ValueError, AttributeError, TypeError):
+            pass
+        code = (
+            VALIDATION_ERROR if response.status_code == HTTP_BAD_REQUEST else JIRA_ERROR
+        )
+        return error_response(code, message)
 
     @staticmethod
     def _json_object(response: httpx.Response) -> dict[str, Any] | ErrorResponse:

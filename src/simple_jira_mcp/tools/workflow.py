@@ -13,7 +13,9 @@ from simple_jira_mcp.utils.errors import (
 from simple_jira_mcp.utils.validation import validate_issue_key
 
 
-def _get_client(issue_key: str, config_id: str | None) -> JiraClient | ErrorResponse:
+def client_for_issue(
+    issue_key: str, config_id: str | None
+) -> JiraClient | ErrorResponse:
     """Validate a normalized issue key and resolve the selected configuration."""
     if not issue_key:
         return error_response(VALIDATION_ERROR, "Issue key is required")
@@ -28,7 +30,7 @@ def _get_client(issue_key: str, config_id: str | None) -> JiraClient | ErrorResp
 async def get_transitions(issue_key: str, config_id: str | None = None) -> ToolResult:
     """Get available issue transitions, target statuses, and screen field metadata."""
     issue_key = issue_key.strip().upper()
-    client = _get_client(issue_key, config_id)
+    client = client_for_issue(issue_key, config_id)
     if is_error(client):
         return client
     return await client.get_transitions(issue_key)
@@ -48,7 +50,7 @@ async def transition_issue(
     completion date in the comment. Fields must be accepted by the transition screen.
     """
     issue_key = issue_key.strip().upper()
-    client = _get_client(issue_key, config_id)
+    client = client_for_issue(issue_key, config_id)
     if is_error(client):
         return client
     if not transition.strip():
@@ -67,7 +69,7 @@ async def add_comment(
 ) -> ToolResult:
     """Add a plain-text comment and return its ID and creation time."""
     issue_key = issue_key.strip().upper()
-    client = _get_client(issue_key, config_id)
+    client = client_for_issue(issue_key, config_id)
     if is_error(client):
         return client
     if not body.strip():

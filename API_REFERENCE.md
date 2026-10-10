@@ -18,8 +18,11 @@ also set `isError`, but carry the SDK's plain-text validation message
 instead of the JSON object above.
 
 Tool annotations: `list_configs`, `search_issues`, `get_issue`, and
-`get_transitions` are marked read-only. The other four are marked
-non-destructive and non-idempotent.
+`get_transitions` are marked read-only. `update_issue` and `delete_issue`
+are marked destructive and idempotent. The other four are marked
+non-destructive and non-idempotent. Idempotent describes the effect on Jira,
+not the result: repeating a `delete_issue` call leaves the issue deleted and
+returns `ISSUE_NOT_FOUND`.
 
 ## Tools
 
@@ -84,6 +87,51 @@ non-destructive and non-idempotent.
 - Errors: `PROJECT_NOT_FOUND`, `INVALID_ISSUE_TYPE`, `INVALID_PRIORITY`,
   `AUTH_FAILED`, `CONFIG_NOT_FOUND`, `VALIDATION_ERROR`, `RATE_LIMITED`,
   `JIRA_ERROR`.
+
+### update_issue
+
+- Purpose: Change fields on an existing issue.
+- Inputs: `issue_key` (PROJECT-123), `summary` (<=255 chars), `description`
+  (plain text, converted to ADF), `priority`, `labels`, `assignee_account_id`,
+  `fields` (dict of Jira field IDs to native JSON values), `config_id`. All but
+  `issue_key` are optional, and at least one field must be given.
+- Behavior: Omitted parameters leave their field unchanged. `labels` replaces
+  the current labels, and `[]` removes them all. An empty `description`
+  replaces the description with an empty document. Put any other field in
+  `fields`. A `null` value there clears the field, for example
+  `{"assignee": null}` to unassign. A field given both directly and in
+  `fields` returns `VALIDATION_ERROR`. Status cannot be changed here; use
+  `transition_issue`.
+- Endpoint: `PUT /rest/api/3/issue/{key}`.
+- Returns: `{"key": str, "url": str, "updated": [field_id, ...]}`. `updated`
+  lists the field IDs sent to Jira, sorted.
+- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR` (including fields Jira rejects),
+  `AUTH_FAILED`, `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
+
+Example inputs:
+
+```json
+{
+  "issue_key": "ONE-123",
+  "summary": "Login fails on Safari 18",
+  "labels": ["browser", "login"],
+  "fields": {"duedate": "2026-11-01", "assignee": null}
+}
+```
+
+### delete_issue
+
+- Purpose: Permanently delete an issue. Jira cannot restore a deleted issue.
+- Inputs: `issue_key` (PROJECT-123), `delete_subtasks` (default false),
+  `config_id` (optional).
+- Behavior: Jira refuses to delete an issue that has subtasks unless
+  `delete_subtasks` is true, and returns `VALIDATION_ERROR` otherwise.
+  Deleting an issue that is already deleted returns `ISSUE_NOT_FOUND`.
+- Endpoint: `DELETE /rest/api/3/issue/{key}?deleteSubtasks=true|false`.
+- Returns: `{"key": str, "deleted": true}`.
+- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`,
+  `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR` (including a missing
+  Delete Issues permission, with Jira's message).
 
 ### get_transitions
 
@@ -213,7 +261,8 @@ Example inputs:
   stalls, not when the transfer is merely long.
 - A timeout is reported as a transport failure, indistinguishable from other
   connection errors: `JIRA_ERROR` from `search_issues`, `get_issue`,
-  `create_issue`, `get_transitions`, `transition_issue`, and `add_comment`,
+  `create_issue`, `update_issue`, `delete_issue`, `get_transitions`,
+  `transition_issue`, and `add_comment`,
   and `DOWNLOAD_FAILED` from the transfer step of
   `download_attachment` — the metadata fetch that precedes it is a `get_issue`
   call, so a timeout there surfaces as `JIRA_ERROR`. The message text comes
@@ -236,6 +285,8 @@ Example inputs:
 - `attachment_id` must be numeric.
 - `transition` and comment `body` must not be empty or whitespace-only.
   Optional transition `comment` and `resolution` must also be non-empty when supplied.
+- `update_issue` rejects an empty or whitespace-only `summary`, `priority`, or
+  `assignee_account_id`. To unassign, pass `fields: {"assignee": null}`.
 - `output_dir` must exist and be a directory when provided; when omitted the
   current working directory is used.
 - Filenames are sanitized before writing: any directory component (`/` or `\`)

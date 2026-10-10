@@ -299,6 +299,8 @@ On Windows, use full paths with backslashes:
 | `search_issues`       | Search issues using JQL              |
 | `get_issue`           | Get detailed issue information       |
 | `create_issue`        | Create a new issue                   |
+| `update_issue`        | Change fields on an issue            |
+| `delete_issue`        | Permanently delete an issue          |
 | `get_transitions`     | List transitions and screen fields   |
 | `transition_issue`    | Transition an issue by ID or name    |
 | `add_comment`         | Add a plain-text comment             |
@@ -328,6 +330,14 @@ On Windows, use full paths with backslashes:
   `size_kb` and `mime_type`.
 - `create_issue`: Summary max 255 characters; description is converted to
   ADF; optional `priority`, `labels`, and `assignee_account_id`.
+- `update_issue`: Omitted parameters stay unchanged. `labels` replaces the
+  current labels. An empty `description` blanks the description. Other
+  fields go in `fields` in Jira REST format, where a
+  `null` value clears the field (`{"assignee": null}` unassigns). Status
+  changes go through `transition_issue`.
+- `delete_issue`: Permanent; Jira cannot restore the issue. An issue with
+  subtasks is deleted only when `delete_subtasks` is true. The API token's
+  user needs the Delete Issues permission in the project.
 - `get_transitions`: Returns transition IDs, names, target statuses, and screen
   field metadata with required flags and allowed values.
 - `transition_issue`: Accepts an ID or case-insensitive transition/target-status

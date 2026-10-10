@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `update_issue` tool changes summary, description, priority, labels, and
+  assignee, plus any other field through `fields` in Jira REST format. A
+  `null` value in `fields` clears a field
+- `delete_issue` tool permanently deletes an issue, and its subtasks when
+  `delete_subtasks` is true
+- Both tools are annotated as destructive and idempotent, so clients can ask
+  for confirmation before running them
+
+### Changed
+
+- Tool registration is split across `app.py` (server instance and shared
+  helpers), `server.py` (read-only tools and the entry point), and
+  `write_tools.py` (tools that change Jira or local files). The launch
+  command is unchanged
+
 ## [0.6.0] - 2026-10-10
 
 ### Breaking

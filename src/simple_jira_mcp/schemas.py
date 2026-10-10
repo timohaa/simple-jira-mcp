@@ -51,6 +51,27 @@ AssigneeAccountId = Annotated[
     str | None, Field(description="Atlassian account ID of the assignee.")
 ]
 
+# update_issue
+NewSummary = Annotated[
+    str | None, Field(description="New title, at most 255 characters.")
+]
+NewLabels = Annotated[
+    list[str] | None,
+    Field(description="Labels that replace the current ones. [] removes all."),
+]
+UpdateFields = Annotated[
+    dict[str, Any] | None,
+    Field(
+        description=(
+            "Other fields in Jira REST format, keyed by field ID. A null value "
+            "clears the field."
+        )
+    ),
+]
+
+# delete_issue
+DeleteSubtasks = Annotated[bool, Field(description="Also delete the issue's subtasks.")]
+
 # transition_issue
 Transition = Annotated[
     str, Field(description="Transition ID, transition name, or target status name.")

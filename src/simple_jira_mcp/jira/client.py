@@ -8,6 +8,7 @@ is split across multiple modules for maintainability:
 - create.py: Create issue operations
 - attachment.py: Attachment download operations
 - workflow.py: Issue transitions and comments
+- edit.py: Issue updates and deletion
 """
 
 from pathlib import Path
@@ -17,6 +18,7 @@ from simple_jira_mcp.config import JiraConfig, get_config
 from simple_jira_mcp.jira.attachment import AttachmentOperation
 from simple_jira_mcp.jira.base import HttpSession
 from simple_jira_mcp.jira.create import CreateIssueParams, CreateOperation
+from simple_jira_mcp.jira.edit import EditOperation, UpdateIssueParams
 from simple_jira_mcp.jira.issue import IssueOperation
 from simple_jira_mcp.jira.search import (
     DEFAULT_SEARCH_FIELDS,
@@ -35,6 +37,7 @@ __all__ = [
     "CreateIssueParams",
     "JiraClient",
     "SearchParams",
+    "UpdateIssueParams",
     "close_clients",
     "get_client",
 ]
@@ -60,6 +63,7 @@ class JiraClient:
         self._create = CreateOperation(config, self._session)
         self._attachment = AttachmentOperation(config, self._session)
         self._workflow = WorkflowOperation(config, self._session)
+        self._edit = EditOperation(config, self._session)
 
     async def aclose(self) -> None:
         """Close the pooled HTTP connections."""
@@ -152,6 +156,18 @@ class JiraClient:
     ) -> dict[str, Any] | ErrorResponse:
         """Add a plain-text comment to an issue."""
         return await self._workflow.add_comment(issue_key, body)
+
+    async def update_issue(
+        self, issue_key: str, params: UpdateIssueParams
+    ) -> dict[str, Any] | ErrorResponse:
+        """Update fields on an issue."""
+        return await self._edit.update_issue(issue_key, params)
+
+    async def delete_issue(
+        self, issue_key: str, *, delete_subtasks: bool = False
+    ) -> dict[str, Any] | ErrorResponse:
+        """Permanently delete an issue."""
+        return await self._edit.delete_issue(issue_key, delete_subtasks=delete_subtasks)
 
     async def download_attachment(
         self,
