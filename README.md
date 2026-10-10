@@ -343,7 +343,8 @@ On Windows, use full paths with backslashes:
 - `transition_issue`: Accepts an ID or case-insensitive transition/target-status
   name. Ambiguous names return valid options. Optional `resolution` and `fields`
   must be accepted by the screen; an optional plain-text `comment` is posted in
-  the same request. Returns status, resolution, and `resolutiondate` from Jira.
+  the same request, or right after it when the transition has no comment
+  field. Returns status, resolution, and `resolutiondate` from Jira.
   Jira sets `resolutiondate` itself; the API cannot edit it. Record the actual
   completion date in the comment.
 - `add_comment`: Converts plain text to ADF and returns the comment ID and

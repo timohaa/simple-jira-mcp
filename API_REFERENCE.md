@@ -159,7 +159,8 @@ Example inputs:
   Use an ID when several transitions lead to the same status.
 - Endpoint: Fetch expanded transition metadata, then
   `POST /rest/api/3/issue/{key}/transitions`. An optional comment is converted to
-  ADF and included in the same request via `update.comment`.
+  ADF. Use `update.comment` when screen metadata lists `comment`; otherwise,
+  post it afterwards to `POST /rest/api/3/issue/{key}/comment` to avoid Jira dropping it.
 - Fields: `resolution` becomes `fields.resolution: {"name": resolution}`.
   Supplied fields must appear in the selected transition's screen metadata and
   support the `set` operation. Unsupported fields return `VALIDATION_ERROR`
@@ -173,9 +174,8 @@ Example inputs:
   supply it in `fields` return `VALIDATION_ERROR`. Record the actual completion
   date in the comment, for example `"Completed on 2026-09-30; verified today."`.
 - Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
-  `RATE_LIMITED`, `JIRA_ERROR`. If the transition succeeds but the subsequent
-  read fails, the error message explicitly says the transition succeeded.
-  Read the issue before retrying the transition.
+  `RATE_LIMITED`, `JIRA_ERROR`. Errors after a successful transition say it succeeded,
+  whether the separate comment or read failed. Read the issue before retrying.
 
 Example inputs:
 

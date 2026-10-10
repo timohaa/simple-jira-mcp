@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Jira rejects the `priority` parameter. The message names the priority and
   lists the ones the issue accepts
 
+### Fixed
+
+- `transition_issue` no longer loses the comment on transitions without a
+  comment field. Jira ignores a comment sent with such a transition, so it is
+  now posted in a separate request after the transition
+
 ## [0.7.0] - 2026-10-11
 
 ### Added

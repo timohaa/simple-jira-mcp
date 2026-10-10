@@ -118,6 +118,58 @@ async def test_transition_without_optional_fields(client, patch_async_client):
     assert result["resolutiondate"] is None
 
 
+async def test_transition_without_comment_field_posts_comment_separately(
+    client, patch_async_client, workflow_transitions
+):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path.endswith("/comment"):
+            return httpx.Response(201, json={"id": "1", "created": "now"})
+        if request.method == "POST":
+            return httpx.Response(204)
+        if request.url.path.endswith("/transitions"):
+            return httpx.Response(200, json={"transitions": workflow_transitions})
+        return httpx.Response(200, json={"fields": {"status": {"name": "In Progress"}}})
+
+    patch_async_client(httpx.MockTransport(handler))
+    result = await client.transition_issue("ONE-123", "11", comment="Started")
+
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("GET", "/rest/api/3/issue/ONE-123/transitions"),
+        ("POST", "/rest/api/3/issue/ONE-123/transitions"),
+        ("POST", "/rest/api/3/issue/ONE-123/comment"),
+        ("GET", "/rest/api/3/issue/ONE-123"),
+    ]
+    assert json.loads(requests[1].content) == {"transition": {"id": "11"}}
+    assert json.loads(requests[2].content) == {"body": text_to_adf("Started")}
+    assert result["status"] == "In Progress"
+
+
+async def test_separate_comment_failure_after_transition(
+    client, patch_async_client, workflow_transitions
+):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path.endswith("/comment"):
+            return httpx.Response(403, json={"errorMessages": ["No permission"]})
+        if request.method == "POST":
+            return httpx.Response(204)
+        return httpx.Response(200, json={"transitions": workflow_transitions})
+
+    patch_async_client(httpx.MockTransport(handler))
+    result = await client.transition_issue("ONE-123", "11", comment="Started")
+
+    assert len(requests) == 3
+    assert result["error"] == {
+        "code": "JIRA_ERROR",
+        "message": "Transition succeeded, but adding the comment failed: No permission",
+    }
+
+
 async def test_transition_id_takes_precedence(client, patch_async_client):
     posted = []
 

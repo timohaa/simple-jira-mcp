@@ -57,22 +57,43 @@ class WorkflowOperation(JiraClientBase):
         selected = self._resolve_transition(transition, data["transitions"])
         if is_error(selected):
             return selected
-        payload = self._build_payload(selected, comment, resolution, fields)
+        # Jira silently drops update.comment when the transition screen has no
+        # comment field, so such a comment is posted separately afterwards.
+        inline = "comment" in selected["fields"]
+        payload = self._build_payload(
+            selected, comment if inline else None, resolution, fields
+        )
         if is_error(payload):
             return payload
 
-        url = f"{self.base_url}{ISSUE_PATH}/{issue_key}"
         result = await self._request(
             "POST",
-            f"{url}/transitions",
+            f"{self.base_url}{ISSUE_PATH}/{issue_key}/transitions",
             payload=payload,
             success_status=HTTP_NO_CONTENT,
         )
         if is_error(result):
             return result
 
+        return await self._after_transition(issue_key, None if inline else comment)
+
+    async def _after_transition(
+        self, issue_key: str, comment: str | None
+    ) -> dict[str, Any] | ErrorResponse:
+        """Post a comment the transition could not carry, then read the issue."""
+        if comment is not None:
+            posted = await self.add_comment(issue_key, comment)
+            if is_error(posted):
+                posted["error"]["message"] = (
+                    "Transition succeeded, but adding the comment failed: "
+                    + posted["error"]["message"]
+                )
+                return posted
+
         result = await self._request(
-            "GET", url, params={"fields": "status,resolution,resolutiondate"}
+            "GET",
+            f"{self.base_url}{ISSUE_PATH}/{issue_key}",
+            params={"fields": "status,resolution,resolutiondate"},
         )
         if is_error(result):
             result["error"]["message"] = (

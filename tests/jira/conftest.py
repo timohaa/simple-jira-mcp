@@ -46,6 +46,7 @@ def workflow_transitions():
             "name": "Finish work",
             "to": {"id": "5", "name": "Done"},
             "fields": {
+                "comment": {"name": "Comment", "operations": ["add"]},
                 "resolution": {
                     "name": "Resolution",
                     "required": False,
