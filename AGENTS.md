@@ -52,7 +52,9 @@ searches.
 
 ## Key Files
 
-- `src/simple_jira_mcp/server.py` — MCP entry point, tool schemas
+- `src/simple_jira_mcp/server.py` — MCP entry point, tool registration
+- `src/simple_jira_mcp/schemas.py` — `Annotated` parameter types that give
+  tool schemas their descriptions
 - `src/simple_jira_mcp/config.py` — Configuration loading
 - `src/simple_jira_mcp/tools/` — Tool implementations (one file per tool group)
 - `src/simple_jira_mcp/jira/client.py` — Jira REST API v3 client; `get_client()`
