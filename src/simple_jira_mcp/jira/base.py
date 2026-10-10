@@ -36,8 +36,7 @@ ATTACHMENT_PATH = f"{API_BASE}/attachment/content"
 class HttpSession:
     """One pooled, authenticated HTTP client for a Jira instance.
 
-    The client is created on first use so that it binds to the event loop
-    that issues the requests.
+    Create the client on first use to bind it to the requesting event loop.
     """
 
     def __init__(self, config: JiraConfig) -> None:

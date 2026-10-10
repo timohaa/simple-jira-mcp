@@ -33,11 +33,10 @@ async def list_configs() -> CallToolResult:
 @mcp.tool(
     title="Search Jira issues",
     description=(
-        "Search issues via JQL. The query needs at least one bounding clause — "
-        "project, status, assignee, reporter, priority, type/issuetype, key, id, "
-        "or created/updated/resolved — but it does not have to be scoped to a "
-        "project. Quote values that are JQL reserved words: "
-        'project = "ON", not project = ON.'
+        "Search issues using JQL. Include at least one bounding clause: project, "
+        "status, assignee, reporter, priority, type/issuetype, key, id, or "
+        "created/updated/resolved. A project filter is optional. "
+        'Quote JQL reserved values, for example project = "ON".'
     ),
     annotations=READ_ONLY,
 )

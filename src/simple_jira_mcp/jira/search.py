@@ -86,7 +86,7 @@ class SearchOperation(JiraClientBase):
     def _handle_response(
         self, response: httpx.Response, requested_fields: list[str]
     ) -> dict[str, Any] | ErrorResponse:
-        """Handle search response and transform to clean format."""
+        """Convert a search response to tool results or an error."""
         if response.status_code == HTTP_UNAUTHORIZED:
             return error_response(AUTH_FAILED, "Invalid credentials")
         if response.status_code == HTTP_TOO_MANY_REQUESTS:
@@ -111,7 +111,7 @@ class SearchOperation(JiraClientBase):
     def _transform_results(
         self, data: dict[str, Any], requested_fields: list[str]
     ) -> dict[str, Any]:
-        """Transform raw Jira search results to clean format.
+        """Convert Jira search results to the tool response format.
 
         The /search/jql endpoint has no total count; pagination state comes
         from isLast and nextPageToken only.
@@ -123,8 +123,7 @@ class SearchOperation(JiraClientBase):
 
         next_token = data.get("nextPageToken")
 
-        # Fall back to the token when isLast is absent: reporting is_last=True
-        # alongside a valid token would make clients silently truncate results.
+        # Use the token when isLast is absent so clients can fetch remaining pages.
         result: dict[str, Any] = {
             "issues": issues,
             "is_last": data.get("isLast", next_token is None),

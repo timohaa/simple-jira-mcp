@@ -1,14 +1,12 @@
 # Contributing
 
-Contributions are welcome. Please follow these guidelines.
-
 ## Development Setup
 
 See `README.md` for installation instructions.
 
 ## Code Quality
 
-All code must pass checks before submission:
+Run the checks before submitting changes:
 
 ```bash
 ./check.sh
@@ -28,7 +26,7 @@ Actions runs the same script on every push and pull request.
 
 ### MCP Protocol
 
-This is an MCP server using stdio transport. See `AGENTS.md` for critical rules.
+Keep server diagnostics on stderr; stdout carries MCP messages. See `AGENTS.md`.
 
 ### Testing
 

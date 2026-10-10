@@ -1,7 +1,7 @@
 """Jira API client for REST API v3.
 
-This module provides a unified interface to the Jira Cloud API. The implementation
-is split across multiple modules for maintainability:
+Call Jira operations through JiraClient. Each module implements an operation group:
+
 - base.py: Common utilities and constants
 - search.py: Search operations
 - issue.py: Get issue operations
@@ -46,8 +46,7 @@ __all__ = [
 class JiraClient:
     """Async client for Jira Cloud REST API v3.
 
-    This is the main entry point for Jira API operations. It delegates to
-    specialized operation classes for each type of operation.
+    Each operation class handles its Jira requests through a shared HTTP session.
     """
 
     def __init__(self, config: JiraConfig) -> None:

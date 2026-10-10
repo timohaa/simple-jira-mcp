@@ -64,7 +64,7 @@ async def test_download_attachment_dot_only_filename(client, patch_async_client)
 async def test_download_attachment_write_failure_returns_error(
     client, patch_async_client
 ):
-    """Test filesystem errors produce a clean error response, not a crash."""
+    """Test filesystem errors return DOWNLOAD_FAILED."""
 
     async def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(200, content=b"data")

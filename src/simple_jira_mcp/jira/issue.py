@@ -83,7 +83,7 @@ class IssueOperation(JiraClientBase):
         include_comments: bool,
         include_attachments: bool,
     ) -> dict[str, Any]:
-        """Transform raw Jira issue to clean format."""
+        """Convert Jira issue fields to the tool response format."""
         fields = data.get("fields", {})
         key = data.get("key", "")
 

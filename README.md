@@ -7,40 +7,30 @@ for AI agents.
 
 - Search issues using JQL (Jira Query Language)
 - Retrieve issue details with comments and attachments
-- Create new issues
+- Create, update, and delete issues
 - List available transitions and transition issues with screen fields
 - Add comments, including comments posted with a transition
 - Download attachments
-- Support for multiple Jira configurations
+- Connect to multiple Jira instances
 
-## Why not the official Atlassian MCP server?
+## Choosing this server
 
-Atlassian ships an official remote server
-([atlassian/atlassian-mcp-server](https://github.com/atlassian/atlassian-mcp-server)).
-It covers far more ground — Confluence, JSM, Bitbucket, Compass, and issue
-updates and transitions — with per-user OAuth scoping (API tokens optional)
-and nothing for you to host. **If you need that breadth, use it.**
+Use this server to run Jira tools locally with your API token:
 
-This server is worth choosing when:
+- Connect to multiple Jira instances through `JIRA_CONFIG_JSON` and select
+  one with `config_id`.
+- Download attachments to disk.
+- Search, read, create, update, delete, transition, and comment on issues
+  through ten tools.
+- Choose search response fields and read descriptions and comments as plain
+  text.
 
-- **You work across separate Jira instances.** `JIRA_CONFIG_JSON` takes a
-  list and every tool that reaches Jira accepts `config_id`. The official
-  server authorizes one Atlassian identity per connection.
-- **You need attachment files on disk.** The official server has no
-  attachment operations.
-- **No org admin available.** The official server needs one — either to
-  enable Rovo on a verified business domain (OAuth) or to explicitly enable
-  its API-token authentication. This one needs only your own API token.
-- **Tool-surface size matters.** Eight tools instead of ~16 Jira tools plus
-  four other products, a `fields` allowlist on search, and ADF flattened to
-  plain text — less context spent per request.
-- **You want a small blast radius.** Search, read, create, transition, comment,
-  and download. No
-  delete, no bulk mutation, no cross-product writes.
+You install and maintain the server. It supports Jira Cloud and uses the
+configured API token for each instance. It does not support per-user OAuth
+or other Atlassian products.
 
-Trade-offs, stated plainly: no Confluence or other Atlassian products, no general
-issue editing tool, a shared API token rather than per-user OAuth, and you
-maintain it yourself.
+See [Atlassian's official MCP server](https://github.com/atlassian/atlassian-mcp-server)
+for an alternative.
 
 ## Requirements
 
@@ -81,34 +71,33 @@ export JIRA_CONFIG_JSON='[
 
 Generate an API token at: <https://id.atlassian.com/manage-profile/security/api-tokens>
 
-`timeout` is optional and per-instance: seconds to allow for each HTTP phase,
-defaulting to 30. Raise it for a slow instance or large attachments. It must be
-a positive number — the server refuses to start otherwise. See
-[API_REFERENCE.md](API_REFERENCE.md) for exactly what the budget covers.
+Set `timeout` per instance to limit each HTTP phase in seconds. It defaults
+to 30 and must be positive. Raise it for slow connections. See
+[API_REFERENCE.md](API_REFERENCE.md#timeouts) for details.
 
-The server also refuses to start when a `url` does not begin with `https://`
-(the API token would otherwise travel in cleartext), when `id`, `url`,
-`email`, or `token` is empty, or when two entries share an `id`.
+Use an `https://` URL to protect the API token in transit. Each entry must
+have non-empty `id`, `url`, `email`, and `token` values. IDs must be unique.
+The server refuses to start if any entry violates these rules.
 
 ## AI Tool Integration
 
 In every snippet below, replace `/path/to/simple-jira-mcp` with your checkout
-path. The `command` must be the venv interpreter created during installation —
-a bare `python` only works if the ambient interpreter already has `mcp` and
-`httpx` installed.
+path. Set `command` to the venv interpreter created during installation.
+Using a bare `python` requires the client to select an interpreter with the
+server's dependencies installed.
 
 Installation also creates a `venv/bin/simple-jira-mcp` script. You can use
 its path as `command` with no `args` in place of the interpreter and
 `-m simple_jira_mcp`.
 
-Upgrading from 0.5.0 or earlier: the module was renamed, so change
-`"args": ["-m", "src"]` to `"args": ["-m", "simple_jira_mcp"]` in your client
-config and rerun `pip install -e ".[dev]"`.
+When upgrading from 0.5.0 or earlier, change the module name in your client
+config. Replace `"args": ["-m", "src"]` with
+`"args": ["-m", "simple_jira_mcp"]` and rerun `pip install -e ".[dev]"`.
 
-`cwd` is not needed to start the server (`python -m simple_jira_mcp` resolves
-from the installed package regardless of directory), but it sets where
-`download_attachment` saves files when `output_dir` is omitted. Without it,
-downloads land in whatever directory the client launched the server from.
+Set `cwd` to choose where `download_attachment` saves files when
+`output_dir` is omitted. Without `cwd`, downloads use the directory from
+which the client launched the server. The installed package can start
+from any directory.
 
 ### Claude Desktop
 
@@ -276,9 +265,9 @@ Add to Zed `settings.json`:
 }
 ```
 
-Note: Zed does not document a `cwd` key, so this snippet omits it. The server
-still starts fine, but pass `output_dir` explicitly to `download_attachment` —
-otherwise files land in whatever directory Zed launched the server from.
+Pass `output_dir` to `download_attachment` when using this snippet, which
+omits `cwd`. Otherwise, downloads use the directory from which Zed launched
+the server.
 
 ### Windows Notes
 
@@ -308,49 +297,50 @@ On Windows, use full paths with backslashes:
 
 ## Usage Notes
 
-- `list_configs`: Returns configs with `default` true for the first entry
-  in `JIRA_CONFIG_JSON`, plus each config's effective `timeout`. It never
-  returns an error — with no configs loaded it reports `{"configs": []}`
-  rather than `CONFIG_NOT_FOUND`. The server exits at startup when
-  `JIRA_CONFIG_JSON` is unset or empty, so a running server always has at
-  least one config.
+- `list_configs`: Returns each config's effective `timeout` and marks the
+  first entry in `JIRA_CONFIG_JSON` with `default: true`. With no configs
+  loaded, it returns `{"configs": []}`. It never returns an error. The server
+  exits at startup when `JIRA_CONFIG_JSON` is unset or empty.
 - `search_issues`: JQL must include at least one bounding filter (project,
   status, assignee, reporter, priority, type/issuetype, key, id, or a
-  created/updated/resolved clause) — any one of them satisfies the check, so
-  a query need not be scoped to a project. Quote values that are JQL
+  created/updated/resolved clause). Any one satisfies the check. A project
+  filter is optional. Quote values that are JQL
   reserved words: `project = "ON"`, not `project = ON`.
   Semicolons and newlines are rejected. Supports cursor pagination with
   `next_page_token` and `is_last` (the Jira `/search/jql` endpoint returns
   no total count). The optional `fields` allowlist is forwarded to Jira and
-  drives the response shape: each issue contains `key`, `url`, and only the
-  requested fields. Default fields are summary, status, assignee, priority,
+  determines the response fields. Each issue contains `key`, `url`, and only
+  the requested fields. Default fields are summary, status, assignee, priority,
   updated, created, labels, issuetype.
 - `get_issue`: `include_comments` and `include_attachments` toggle those
   sections. Descriptions and comments are plain text; attachments include
   `size_kb` and `mime_type`.
-- `create_issue`: Summary max 255 characters; description is converted to
-  ADF; optional `priority`, `labels`, and `assignee_account_id`.
+- `create_issue`: Accepts a summary up to 255 characters and converts the
+  description to ADF. `priority`, `labels`, and `assignee_account_id` are
+  optional.
 - `update_issue`: Omitted parameters stay unchanged. `labels` replaces the
   current labels. An empty `description` blanks the description. Other
   fields go in `fields` in Jira REST format, where a
   `null` value clears the field (`{"assignee": null}` unassigns). Status
   changes go through `transition_issue`.
-- `delete_issue`: Permanent; Jira cannot restore the issue. An issue with
+- `delete_issue`: Permanently deletes the issue. Jira cannot restore it. An
+  issue with
   subtasks is deleted only when `delete_subtasks` is true. The API token's
   user needs the Delete Issues permission in the project.
 - `get_transitions`: Returns transition IDs, names, target statuses, and screen
   field metadata with required flags and allowed values.
 - `transition_issue`: Accepts an ID or case-insensitive transition/target-status
   name. Ambiguous names return valid options. Optional `resolution` and `fields`
-  must be accepted by the screen; an optional plain-text `comment` is posted in
-  the same request, or right after it when the transition has no comment
-  field. Returns status, resolution, and `resolutiondate` from Jira.
+  must be accepted by the screen. An optional plain-text `comment` is posted
+  in the same request when the screen accepts comments. Otherwise, it is
+  posted immediately after the transition. Returns status, resolution, and
+  `resolutiondate` from Jira.
   Jira sets `resolutiondate` itself; the API cannot edit it. Record the actual
   completion date in the comment.
 - `add_comment`: Converts plain text to ADF and returns the comment ID and
   creation time.
-- `download_attachment`: `output_dir` must exist when provided (defaults to
-  the current working directory); files are saved to
+- `download_attachment`: `output_dir` must exist when provided. It defaults
+  to the current working directory. Files are saved to
   `<output_dir>/<issue_key>/` with sanitized filenames. If the filename is
   already taken, the attachment ID is appended (`log-10042.txt`).
 - Errors: a failed call sets the MCP result's `isError` flag and carries

@@ -15,9 +15,10 @@ from simple_jira_mcp.utils.errors import ToolResult
 logger = logging.getLogger(__name__)
 
 INSTRUCTIONS = (
-    "Tools for Jira Cloud. Every tool except list_configs takes an optional "
-    "config_id; omit it to use the default instance, or call list_configs to see "
-    "the choices. search_issues needs a bounded JQL query. Call get_transitions "
+    "Use these tools to work with Jira Cloud. Every tool except list_configs "
+    "accepts an optional config_id. Omit it to use the default instance. "
+    "Call list_configs to see the available instances. search_issues needs a "
+    "bounded JQL query. Call get_transitions "
     "before transition_issue to learn the valid transitions and screen fields."
 )
 

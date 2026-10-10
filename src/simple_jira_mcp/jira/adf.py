@@ -11,8 +11,8 @@ LEAF_BLOCK_TYPES = frozenset({"paragraph", "heading", "codeBlock"})
 def _inline_text(node: AdfNode) -> str:
     """Extract inline text from an ADF node.
 
-    Adjacent text nodes are concatenated without separators so that
-    formatting marks (bold, links, ...) splitting a word do not corrupt it.
+    Join adjacent text nodes without separators. This preserves words split
+    across nodes by formatting marks such as bold or links.
 
     Args:
         node: An ADF node (dict, list, or scalar).
@@ -76,9 +76,9 @@ def _collect_blocks(node: AdfNode) -> list[str]:
 def adf_to_text(adf: dict[str, Any] | None) -> str:
     """Convert Atlassian Document Format to plain text.
 
-    Inline fragments are joined without separators; block-level nodes
-    (paragraphs, headings, list items, ...) are separated by blank lines,
-    matching the paragraph convention used by text_to_adf.
+    Join inline fragments without separators. Separate block nodes, such as
+    paragraphs, headings, and list items, with blank lines. This matches the
+    paragraph convention used by text_to_adf.
 
     Args:
         adf: The ADF document structure.

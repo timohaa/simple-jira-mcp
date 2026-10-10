@@ -1,6 +1,6 @@
 # API Reference
 
-Authoritative reference for the Jira MCP tools.
+Use this reference for tool inputs, outputs, errors, and JQL examples.
 
 ## Results and Errors
 
@@ -11,18 +11,17 @@ content. A failed call sets the MCP result's `isError` flag and returns:
 {"isError": true, "error": {"code": "ISSUE_NOT_FOUND", "message": "Issue not found"}}
 ```
 
-Arguments that violate a tool's input schema — a missing required argument,
-a wrong type, `limit` outside 1-100, or a `fields` value outside the
-allowlist — are rejected by the MCP SDK before the tool runs. Those results
-also set `isError`, but carry the SDK's plain-text validation message
-instead of the JSON object above.
+The MCP SDK rejects arguments that violate a tool's input schema before the
+tool runs. Examples include missing required arguments, wrong types,
+`limit` outside 1-100, and `fields` values outside the allowlist. These
+results set `isError` and contain the SDK's plain-text validation message.
 
 Tool annotations: `list_configs`, `search_issues`, `get_issue`, and
 `get_transitions` are marked read-only. `update_issue` and `delete_issue`
 are marked destructive and idempotent. The other four are marked
-non-destructive and non-idempotent. Idempotent describes the effect on Jira,
-not the result: repeating a `delete_issue` call leaves the issue deleted and
-returns `ISSUE_NOT_FOUND`.
+non-destructive and non-idempotent. Repeating an idempotent call leaves
+Jira in the same state. For example, repeating `delete_issue` leaves the
+issue deleted and returns `ISSUE_NOT_FOUND`.
 
 ## Tools
 
@@ -31,10 +30,9 @@ returns `ISSUE_NOT_FOUND`.
 - Purpose: List configured Jira instances.
 - Returns: `{"configs": [{"id": str, "url": str, "default": bool,
   "timeout": float}, ...]}`. Credentials are never included.
-- Errors: none. This tool never reports an error. With no configs loaded it
-  returns `{"configs": []}` rather than `CONFIG_NOT_FOUND` — an empty roster
-  is not an error. That case is unreachable in normal operation: the server
-  exits at startup if `JIRA_CONFIG_JSON` is unset, malformed, or empty.
+- Errors: none. With no configs loaded, this tool returns `{"configs": []}`.
+  The server exits at startup if `JIRA_CONFIG_JSON` is unset, malformed, or
+  empty.
 
 ### search_issues
 
@@ -48,19 +46,18 @@ returns `ISSUE_NOT_FOUND`.
 - Allowed `fields` values: `summary`, `status`, `assignee`, `reporter`,
   `priority`, `resolution`, `issuetype`, `labels`, `created`, `updated`,
   `description`, `comment`, `attachment`, `project`. The input schema lists
-  these as an enum, so any other value is rejected. `key` is not
-  selectable — it is always
-  returned. When `fields` is omitted the default set is
-  `summary`, `status`, `assignee`, `priority`, `updated`, `created`,
+  these as an enum and rejects other values. Every issue includes `key`,
+  which cannot be selected through `fields`. When `fields` is omitted, the
+  default set is `summary`, `status`, `assignee`, `priority`, `updated`, `created`,
   `labels`, `issuetype`.
 - Returns: `{"issues": [...], "is_last": bool, "next_page_token": str?}`.
   The Jira `/search/jql` endpoint provides no total count; use `is_last` /
   `next_page_token` to paginate.
-  Each issue contains `key`, `url`, and only the requested fields — the
-  response shape follows `fields`. A few output keys are renamed:
+  Each issue contains `key`, `url`, and only the requested fields.
+  These fields have different output keys:
   `issuetype` → `issue_type`, `comment` → `comments`, `attachment` →
   `attachments`; `project` returns the project key. `comments` and
-  `attachments` use the same shape as get_issue.
+  `attachments` use the same structure as `get_issue`.
 - Errors: `INVALID_JQL`, `UNBOUNDED_QUERY`, `VALIDATION_ERROR`, `AUTH_FAILED`,
   `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
 
@@ -70,11 +67,12 @@ returns `ISSUE_NOT_FOUND`.
 - Inputs: `issue_key` (PROJECT-123), `config_id` (optional),
   `include_comments` (default true), `include_attachments` (default true).
 - Returns: `key`, plain-text summary/description, reporter/assignee, status,
-  priority, issue_type, labels, created/updated/resolved dates, `duedate` (`YYYY-MM-DD` or null), url, optional `comments`
+  priority, issue_type, labels, created/updated/resolved dates, `duedate`
+  (`YYYY-MM-DD` or null), url, optional `comments`
   (`author`, `created`, `body`) and `attachments` (`id`, `filename`, `size_kb`,
   `mime_type`, `created`). Pass an attachment `id` to `download_attachment`.
-- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
-  `RATE_LIMITED`, `JIRA_ERROR`.
+- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`,
+  `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
 
 ### create_issue
 
@@ -106,7 +104,8 @@ returns `ISSUE_NOT_FOUND`.
   lists the field IDs sent to Jira, sorted.
 - Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR` (including fields Jira rejects),
   `INVALID_PRIORITY`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`, `RATE_LIMITED`,
-  `JIRA_ERROR`. `INVALID_PRIORITY` names the rejected `priority` and lists allowed names from `GET /rest/api/3/issue/{key}/editmeta`.
+  `JIRA_ERROR`. `INVALID_PRIORITY` names the rejected `priority` and lists
+  allowed names from `GET /rest/api/3/issue/{key}/editmeta`.
 
 Example inputs:
 
@@ -124,8 +123,8 @@ Example inputs:
 - Purpose: Permanently delete an issue. Jira cannot restore a deleted issue.
 - Inputs: `issue_key` (PROJECT-123), `delete_subtasks` (default false),
   `config_id` (optional).
-- Behavior: Jira refuses to delete an issue that has subtasks unless
-  `delete_subtasks` is true, and returns `VALIDATION_ERROR` otherwise.
+- Behavior: Deleting an issue with subtasks requires `delete_subtasks: true`;
+  otherwise, the tool returns `VALIDATION_ERROR`.
   Deleting an issue that is already deleted returns `ISSUE_NOT_FOUND`.
 - Endpoint: `DELETE /rest/api/3/issue/{key}?deleteSubtasks=true|false`.
 - Returns: `{"key": str, "deleted": true}`.
@@ -144,23 +143,26 @@ Example inputs:
   and `allowedValues` when supplied by Jira. Required fields have
   `required: true`. Transitions without screen fields return `fields: {}`.
   An issue with no available transitions returns `transitions: []`.
-- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
-  `RATE_LIMITED`, `JIRA_ERROR`.
+- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`,
+  `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
 
 ### transition_issue
 
-- Purpose: Transition an issue, optionally setting screen fields and adding a comment.
+- Purpose: Transition an issue, optionally setting screen fields and adding a
+  comment.
 - Inputs: `issue_key` (PROJECT-123), `transition` (required string), `comment`
   (optional plain text), `resolution` (optional resolution name), `fields`
-  (optional dict of Jira field IDs to native JSON values), `config_id` (optional).
+  (optional dict of Jira field IDs to native JSON values), `config_id`
+  (optional).
 - Selection: An exact transition ID takes precedence. Otherwise, match the
   transition name or target status name case-insensitively. Unknown or ambiguous
-  names return `VALIDATION_ERROR` with the available IDs, names, and target statuses.
-  Use an ID when several transitions lead to the same status.
+  names return `VALIDATION_ERROR` with the available IDs, names, and target
+  statuses. Use an ID when several transitions lead to the same status.
 - Endpoint: Fetch expanded transition metadata, then
-  `POST /rest/api/3/issue/{key}/transitions`. An optional comment is converted to
-  ADF. Use `update.comment` when screen metadata lists `comment`; otherwise,
-  post it afterwards to `POST /rest/api/3/issue/{key}/comment` to avoid Jira dropping it.
+  `POST /rest/api/3/issue/{key}/transitions`. The tool converts an optional
+  comment to ADF. It includes the comment in `update.comment` when metadata lists
+  `comment`. Otherwise, the tool posts it afterwards to
+  `POST /rest/api/3/issue/{key}/comment`.
 - Fields: `resolution` becomes `fields.resolution: {"name": resolution}`.
   Supplied fields must appear in the selected transition's screen metadata and
   support the `set` operation. Unsupported fields return `VALIDATION_ERROR`
@@ -168,14 +170,15 @@ Example inputs:
   Jira validates required fields, defaults, allowed values, and workflow rules.
   See [Atlassian's transition API](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/#api-rest-api-3-issue-issueidorkey-transitions-post).
 - Returns: `{"key": str, "status": str, "resolution": str | null,
-  "resolutiondate": str | null}`. After the transition, fetch the issue's
-  `status,resolution,resolutiondate` fields to return Jira's current values.
+  "resolutiondate": str | null}`. After the transition, the tool fetches
+  Jira's current `status,resolution,resolutiondate` values.
 - Dates: Jira sets `resolutiondate` itself; the API cannot edit it. Attempts to
   supply it in `fields` return `VALIDATION_ERROR`. Record the actual completion
   date in the comment, for example `"Completed on 2026-09-30; verified today."`.
-- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
-  `RATE_LIMITED`, `JIRA_ERROR`. Errors after a successful transition say it succeeded,
-  whether the separate comment or read failed. Read the issue before retrying.
+- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`,
+  `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`. Errors after a successful
+  transition say it succeeded, whether the separate comment or read failed.
+  Read the issue before retrying.
 
 Example inputs:
 
@@ -195,14 +198,15 @@ Example inputs:
   `config_id` (optional).
 - Endpoint: `POST /rest/api/3/issue/{key}/comment` with an ADF `body`.
 - Returns: `{"id": str, "created": str}` using Jira's comment ID and timestamp.
-- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
-  `RATE_LIMITED`, `JIRA_ERROR`.
+- Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`,
+  `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
 
 ### download_attachment
 
 - Purpose: Download an attachment to disk.
 - Inputs: `issue_key` (PROJECT-123), `attachment_id` (numeric string),
-  `output_dir` (must exist when provided, defaults to CWD), `config_id` (optional).
+  `output_dir` (must exist when provided, defaults to CWD), `config_id`
+  (optional).
 - Behavior: Resolves the filename from the issue's attachment metadata, then
   saves to `<output_dir>/<issue_key>/<sanitized filename>`, creating the
   `<issue_key>` subdirectory if needed. If that path already exists, the
@@ -253,20 +257,18 @@ Example inputs:
 - Every Jira request uses the `timeout` of its config, an optional field in
   each `JIRA_CONFIG_JSON` entry. It defaults to `30.0` seconds and must be a
   positive number; anything else fails at startup.
-- The value is a budget for each HTTP phase *independently* — connect, read,
-  write, and pool each get the full amount — not a deadline for the request as
-  a whole. A request can therefore outlive a single `timeout` interval.
-- The read budget applies per chunk of the response body, so it does not bound
-  the total duration of a large `download_attachment`. It fires when Jira
-  stalls, not when the transfer is merely long.
-- A timeout is reported as a transport failure, indistinguishable from other
-  connection errors: `JIRA_ERROR` from `search_issues`, `get_issue`,
+- Connect, read, write, and pool each receive the full `timeout` value.
+  A request can exceed one `timeout` interval in total.
+- The read timeout limits the wait for each chunk of the response body.
+  An attachment download can continue while chunks arrive within that limit,
+  regardless of its total duration.
+- Timeouts return `JIRA_ERROR` from `search_issues`, `get_issue`,
   `create_issue`, `update_issue`, `delete_issue`, `get_transitions`,
-  `transition_issue`, and `add_comment`,
-  and `DOWNLOAD_FAILED` from the transfer step of
-  `download_attachment` — the metadata fetch that precedes it is a `get_issue`
-  call, so a timeout there surfaces as `JIRA_ERROR`. The message text comes
-  from the underlying httpx exception.
+  `transition_issue`, and `add_comment`.
+- `download_attachment` returns `JIRA_ERROR` if its initial metadata fetch
+  times out. A timeout during the file transfer returns `DOWNLOAD_FAILED`.
+- Timeout messages come from the underlying httpx exception. They use the
+  same error codes as other connection failures.
 
 ## Validation Notes
 
@@ -276,31 +278,29 @@ Example inputs:
   `resolved`, `status`, `type`, `issuetype`, `priority`, `key`, `id`. They are
   matched as whole words outside quoted strings and outside the `ORDER BY`
   clause, so `text ~ "project plan" ORDER BY created` is still unbounded.
-- Any one of those keywords satisfies the check — a query does not have to be
-  scoped to a project. `status = "Done"` is accepted and searches every
-  project the account can see.
+- Any one of those keywords satisfies the check. For example,
+  `status = "Done"` searches every project the account can see.
 - `limit` must be 1-100 (enforced by the input schema).
 - `issue_key` pattern: `^[A-Z][A-Z0-9]+-\d+$`;
   `project_key`: `^[A-Z][A-Z0-9]+$`. Both are trimmed and upper-cased first.
 - `attachment_id` must be numeric.
 - `transition` and comment `body` must not be empty or whitespace-only.
-  Optional transition `comment` and `resolution` must also be non-empty when supplied.
+  Optional transition `comment` and `resolution` must also be non-empty when
+  supplied.
 - `update_issue` rejects an empty or whitespace-only `summary`, `priority`, or
   `assignee_account_id`. To unassign, pass `fields: {"assignee": null}`.
 - `output_dir` must exist and be a directory when provided; when omitted the
   current working directory is used.
-- Filenames are sanitized before writing: any directory component (`/` or `\`)
-  is dropped, `: < > " | ? *` and NUL become `_`, and empty or dot-only names
-  fall back to `attachment`.
+- Filenames are sanitized before writing. Directory components (`/` or `\`)
+  are dropped. The characters `: < > " | ? *` and NUL become `_`.
+  Empty or dot-only names fall back to `attachment`.
 
 ## Common JQL Patterns
 
-Quote any value that is a JQL reserved word, or Jira's parser rejects the
-query with `INVALID_JQL` and a character offset. `ON`, `IN`, `IS`, `TO`,
-`BY`, `AND`, `OR`, `NOT`, `NULL`, `EMPTY`, `WAS`, `CF`, and `FROM` are all
-reserved, and short project keys collide with them often:
-`project = "ON"` works, `project = ON` does not. Quoting is always safe, so
-quote project keys unconditionally.
+Quote JQL values that are reserved words. Unquoted reserved values cause
+`INVALID_JQL` with a character offset. Reserved words include `ON`, `IN`,
+`IS`, `TO`, `BY`, `AND`, `OR`, `NOT`, `NULL`, `EMPTY`, `WAS`, `CF`, and `FROM`.
+Always quote project keys to avoid these conflicts: `project = "ON"`.
 
 - Updated in range: `updated >= "2025-01-15" AND updated < "2025-01-16"`
 - Created in range: `created >= "2025-01-01" AND created < "2025-02-01"`

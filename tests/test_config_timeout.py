@@ -93,7 +93,7 @@ class TestLoadConfigsTimeout:
             load_configs()
 
     def test_raises_on_null(self, clean_config):
-        # An explicit `"timeout": null` is a mistake, not an omission.
+        # Reject an explicit `"timeout": null` value.
         os.environ["JIRA_CONFIG_JSON"] = json.dumps(
             [
                 {

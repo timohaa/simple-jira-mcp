@@ -72,7 +72,7 @@ class TestListConfigs:
 
     @pytest.mark.asyncio
     async def test_never_errors_when_no_configs(self, clean_config):
-        # Documented contract: an empty roster is not CONFIG_NOT_FOUND.
+        # Return an empty list when no configurations are loaded.
         result = await list_configs()
 
         assert "isError" not in result

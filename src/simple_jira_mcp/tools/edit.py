@@ -25,8 +25,8 @@ async def update_issue(
 ) -> ToolResult:
     """Update fields on an issue. Omitted parameters leave their field unchanged.
 
-    Labels replace the current set. Other fields, and null values that clear a
-    field, go in `fields` in Jira REST format.
+    Labels replace the current set. Pass other fields in Jira REST format
+    through `fields`. Use null values to clear fields.
     """
     issue_key = issue_key.strip().upper()
     client = client_for_issue(issue_key, config_id)

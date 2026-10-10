@@ -77,7 +77,7 @@ class TestSearchValidation:
 
         assert result["isError"] is True
         assert result["error"]["code"] == "UNBOUNDED_QUERY"
-        # The message must name the clauses that actually satisfy the guard
+        # The message must name the accepted bounding clauses.
         message = result["error"]["message"]
         assert all(keyword in message for keyword in BOUNDING_KEYWORDS)
 

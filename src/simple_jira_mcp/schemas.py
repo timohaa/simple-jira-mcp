@@ -103,7 +103,7 @@ OutputDir = Annotated[
     str | None,
     Field(
         description=(
-            "Existing directory to save into; the file lands in an "
+            "Existing directory to save into. The file is saved in an "
             "<issue_key>/ subdirectory. Default: the server's working directory."
         )
     ),

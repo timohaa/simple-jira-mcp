@@ -47,9 +47,9 @@ async def create_issue(
     title="Update Jira issue",
     description=(
         "Update fields on a Jira issue. Omitted parameters stay unchanged. Labels "
-        "replace the current set. Use fields for anything else, and a null value "
-        'there to clear a field, e.g. {"assignee": null}. Returns the updated '
-        "field IDs. To change status, use transition_issue."
+        "replace the current set. Pass other Jira fields through fields. "
+        'Use a null value to clear a field, e.g. {"assignee": null}. '
+        "Returns the updated field IDs. To change status, use transition_issue."
     ),
     annotations=DESTRUCTIVE,
 )
@@ -105,11 +105,12 @@ async def delete_issue(
     title="Transition Jira issue",
     description=(
         "Transition a Jira issue using a transition ID or a case-insensitive "
-        "transition/target-status name. Optional plain-text comment is posted in "
-        "the same request. Resolution and fields must be accepted by the transition "
-        "screen. Returns the new status, resolution, and resolutiondate. Jira sets "
-        "resolutiondate itself; the API cannot edit it. Record the actual completion "
-        "date in the comment."
+        "transition or target status name. An optional plain-text comment is posted "
+        "with the transition when the screen accepts comments. Otherwise, it is "
+        "posted immediately afterwards. Resolution and fields must be accepted by "
+        "the transition screen. Returns the new status, resolution, and "
+        "resolutiondate. Jira sets resolutiondate itself. The API cannot edit it. "
+        "Record the actual completion date in the comment."
     ),
     annotations=WRITE,
 )

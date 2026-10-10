@@ -100,7 +100,7 @@ def _parse_config(item: object) -> JiraConfig:
 
 
 def load_configs() -> list[JiraConfig]:
-    """Load Jira configurations from environment variable.
+    """Load Jira configurations from JIRA_CONFIG_JSON.
 
     Returns:
         List of JiraConfig instances.
@@ -178,7 +178,7 @@ def get_default_config_id() -> str | None:
 
 
 def reset_config_state() -> None:
-    """Testing helper to clear cached configuration state."""
+    """Clear cached configuration state for tests."""
     global _configs, _default_config_id  # noqa: PLW0603
     _configs = []
     _default_config_id = None

@@ -38,11 +38,9 @@ Source and docs: <https://github.com/timohaa/scopewalker-mcp>
 
 ## Behavior
 
-- **Minimum footprint.** Write the minimum code that solves the problem —
-  no speculative abstractions, no drive-by renames, no unrelated cleanup
-  bundled into the same change.
-- **Verify, don't trust.** `./check.sh` passing is necessary but not
-  sufficient — read a tool's tests to confirm its actual behavior.
+- Write the minimum code that solves the problem. Avoid speculative
+  abstractions, unrelated renames, and unrelated cleanup.
+- Run `./check.sh` and read a tool's tests to confirm its behavior.
 - **Never create `_enhanced`, `_v2`, or `_new` duplicate file variants** —
   edit the original file.
 - **Do not bump the version.** Leave `version` in `pyproject.toml` unchanged
@@ -74,9 +72,7 @@ searches.
 
 ## Jira API Gotchas
 
-These are non-obvious behaviors that cause real bugs:
-
-- **Search is POST, not GET**: `POST /rest/api/3/search/jql`
+- **Use POST for search**: `POST /rest/api/3/search/jql`
 - **All queries must be bounded** — always include at least one filter
   (project, assignee, date range, etc.). Any one filter is enough; the query
   need not be scoped to a project.
@@ -91,7 +87,8 @@ These are non-obvious behaviors that cause real bugs:
   # NOT: updated <= "2025-01-15" (only matches midnight)
   ```
 
-- **ADF, not plain text**: Jira Cloud uses Atlassian Document Format for
+- **Convert descriptions and comments**: Jira Cloud uses Atlassian Document
+  Format for
   descriptions/comments. Convert ADF → plain text when returning data,
   plain text → ADF when creating. See `jira/adf.py`.
 
@@ -125,9 +122,8 @@ Before major refactoring:
 
 ## Writing Style
 
-Applies to chat responses, commit messages, PR descriptions, and docs. Ban the
-rhetorical move, not just the phrase — restating it in new words is still
-banned.
+Apply these rules to chat responses, commit messages, PR descriptions, and
+docs. Rephrasing a banned rhetorical pattern still violates the rule.
 
 - No antithesis filler ("it's not X, it's Y", "isn't just X, it's Y") —
   implies a distinction without stating one.

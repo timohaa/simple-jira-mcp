@@ -153,8 +153,7 @@ def sanitize_filename(filename: str) -> str:
     Returns:
         A safe filename with dangerous characters removed.
     """
-    # Accept both forward and backslash separators before splitting, so
-    # paths like "C:\Users\...\file.txt" are handled the same as POSIX paths.
+    # Normalize separators to handle Windows and POSIX paths alike.
     safe = filename.replace("\\", "/").split("/")[-1]
     safe = re.sub(r'[:\x00<>"|?*]', "_", safe)
     safe = safe.strip()

@@ -2,10 +2,10 @@
 
 <!-- markdownlint-disable MD024 -->
 
-All notable changes to this project will be documented in this file.
+This file records notable changes to the project.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Revise documentation, tool descriptions, docstrings, and comments for
+  concise, direct language
 - `update_issue` returns `INVALID_PRIORITY` instead of `VALIDATION_ERROR` when
   Jira rejects the `priority` parameter. The message names the priority and
   lists the ones the issue accepts
@@ -52,8 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `"args": ["-m", "src"]` to `"args": ["-m", "simple_jira_mcp"]` in MCP client
   configs and reinstall with `pip install -e ".[dev]"`
 - Failed tool calls now set the MCP result's `isError` flag. The
-  `{"isError": true, "error": {...}}` body is unchanged, so clients that read
-  the error code keep working, but clients now see the call as failed
+  `{"isError": true, "error": {...}}` body is unchanged. Clients can continue
+  reading the error code and now also see the protocol error flag
 - Arguments that violate a tool's input schema (`limit` outside 1-100, an
   unknown `fields` value, a wrong type) are rejected by the SDK with a
   plain-text message before the tool runs, in place of `VALIDATION_ERROR`
@@ -112,10 +114,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The `search_issues` tool description now names the clauses that satisfy the
-  bounding check and states that scoping to a project is not required — the
-  previous "Requires bounded query" wording read as a project-scope
-  requirement
+- Clarify which clauses satisfy the `search_issues` bounding check. The
+  previous "Requires bounded query" wording suggested a project filter was
+  required
 - `UNBOUNDED_QUERY` errors now list the accepted bounding keywords
 
 ### Added
@@ -127,20 +128,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- Document the HTTP timeout: what the budget covers, why it does not bound
-  a large attachment download, and which error codes a timeout surfaces as
+- Document HTTP timeout limits for requests and attachment downloads,
+  including the error codes returned on timeout
 - Document that `list_configs` never returns an error and reports
-  `{"configs": []}` rather than `CONFIG_NOT_FOUND` for an empty roster
-- Note that `download_attachment` buffers the whole attachment in memory
+  `{"configs": []}` when no configurations are loaded
+- Document that `download_attachment` buffers the whole attachment in memory
 - Document that JQL values which are reserved words must be quoted
-  (`project = "ON"`), a first-query trap for short project keys
+  (`project = "ON"`)
 
 ## [0.3.0] - 2026-07-26
 
 ### Changed
 
-- `search_issues` responses are now field-driven: each issue contains `key`,
-  `url`, and only the requested `fields` (previously a fixed set of keys)
+- Return `key`, `url`, and the requested `fields` in `search_issues` responses.
+  Previously, each issue had a fixed set of keys
 - ADF-to-text conversion joins adjacent inline nodes without inserting spaces
   (formatting marks no longer split words) and separates block nodes with
   blank lines instead of single spaces
