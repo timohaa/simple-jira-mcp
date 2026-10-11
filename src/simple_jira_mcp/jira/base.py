@@ -9,6 +9,7 @@ from simple_jira_mcp.config import JiraConfig
 from simple_jira_mcp.jira.adf import adf_to_text
 from simple_jira_mcp.utils.errors import (
     AUTH_FAILED,
+    INVALID_PRIORITY,
     ISSUE_NOT_FOUND,
     JIRA_ERROR,
     RATE_LIMITED,
@@ -142,6 +143,14 @@ class JiraClientBase:
         if isinstance(data, dict):
             return data
         return error_response(JIRA_ERROR, "Invalid JSON response from Jira API")
+
+    @staticmethod
+    def _priority_error(message: str, allowed: list[dict[str, Any]]) -> ErrorResponse:
+        """Build INVALID_PRIORITY, appending the allowed names when known."""
+        names = [item["name"] for item in allowed if item.get("name")]
+        if names:
+            message += f" Valid priorities: {', '.join(names)}."
+        return error_response(INVALID_PRIORITY, message)
 
     @staticmethod
     def _extract_name(obj: dict[str, Any] | None) -> str | None:

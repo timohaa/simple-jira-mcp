@@ -83,7 +83,7 @@ issue deleted and returns `ISSUE_NOT_FOUND`.
 - Returns: `{"key": str, "id": str, "url": str}`.
 - Errors: `PROJECT_NOT_FOUND`, `INVALID_ISSUE_TYPE`, `INVALID_PRIORITY`,
   `AUTH_FAILED`, `CONFIG_NOT_FOUND`, `VALIDATION_ERROR`, `RATE_LIMITED`,
-  `JIRA_ERROR`.
+  `JIRA_ERROR`. `INVALID_PRIORITY` includes the rejected and allowed names.
 
 ### update_issue
 

@@ -87,7 +87,43 @@ class CreateOperation(JiraClientBase):
         except httpx.RequestError as e:
             logger.exception("Request failed for create_issue")
             return error_response(JIRA_ERROR, f"Request failed: {e}")
-        return self._handle_response(response)
+        result = self._handle_response(response)
+        rejected = is_error(result) and result["error"]["code"] == INVALID_PRIORITY
+        if params.priority and rejected:
+            return await self._invalid_priority(params)
+        return result
+
+    async def _invalid_priority(self, params: CreateIssueParams) -> ErrorResponse:
+        """Name the rejected priority and list the ones the issue type accepts."""
+        message = (
+            f"Priority '{params.priority}' is not valid for {params.issue_type} "
+            f"issues in {params.project_key}."
+        )
+        return self._priority_error(message, await self._allowed_priorities(params))
+
+    async def _allowed_priorities(
+        self, params: CreateIssueParams
+    ) -> list[dict[str, Any]]:
+        """Read allowed priorities from create metadata, or [] when unavailable."""
+        url = f"{self.base_url}{ISSUE_PATH}/createmeta/{params.project_key}/issuetypes"
+        page = {"maxResults": "200"}
+        types = await self._request("GET", url, params=page)
+        if is_error(types):
+            return []
+        wanted = params.issue_type.casefold()
+        for issue_type in types.get("issueTypes", []):
+            if str(issue_type.get("name", "")).casefold() == wanted:
+                break
+        else:
+            return []
+        meta = await self._request("GET", f"{url}/{issue_type.get('id')}", params=page)
+        if is_error(meta):
+            return []
+        for field in meta.get("fields", []):
+            if field.get("fieldId") == "priority":
+                allowed: list[dict[str, Any]] = field.get("allowedValues", [])
+                return allowed
+        return []
 
     def _handle_response(
         self, response: httpx.Response

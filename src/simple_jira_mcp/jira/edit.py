@@ -6,7 +6,6 @@ from typing import Any
 from simple_jira_mcp.jira.adf import text_to_adf
 from simple_jira_mcp.jira.base import HTTP_NO_CONTENT, ISSUE_PATH, JiraClientBase
 from simple_jira_mcp.utils.errors import (
-    INVALID_PRIORITY,
     VALIDATION_ERROR,
     ErrorResponse,
     error_response,
@@ -60,12 +59,9 @@ class EditOperation(JiraClientBase):
             "GET", f"{self.base_url}{ISSUE_PATH}/{issue_key}/editmeta"
         )
         if is_error(meta):
-            return error_response(INVALID_PRIORITY, message)
+            return self._priority_error(message, [])
         allowed = meta.get("fields", {}).get("priority", {}).get("allowedValues", [])
-        names = [item["name"] for item in allowed if item.get("name")]
-        if names:
-            message += f" Valid priorities: {', '.join(names)}."
-        return error_response(INVALID_PRIORITY, message)
+        return self._priority_error(message, allowed)
 
     async def delete_issue(
         self, issue_key: str, *, delete_subtasks: bool = False

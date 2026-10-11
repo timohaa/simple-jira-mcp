@@ -123,20 +123,88 @@ async def test_create_issue_invalid_issue_type_error(client, patch_async_client)
     assert result["error"]["code"] == "INVALID_ISSUE_TYPE"
 
 
-@pytest.mark.asyncio
-async def test_create_issue_invalid_priority_error(client, patch_async_client):
-    """Test create_issue maps invalid priority errors."""
+PRIORITY_REJECTED = httpx.Response(
+    400,
+    json={"errors": {"priority": "Specify the Priority (name) in the string format"}},
+)
+INVALID = "Priority 'Urgent' is not valid for bug issues in ONE."
+ISSUE_TYPES = {"issueTypes": [{"id": "1", "name": "Task"}, {"id": "7", "name": "Bug"}]}
+ALLOWED = [{"name": "High"}, {"name": "Low"}]
+TYPE_FIELDS = {
+    "fields": [
+        {"fieldId": "summary"},
+        {"fieldId": "priority", "allowedValues": ALLOWED},
+    ]
+}
+TYPES_PATH = "/rest/api/3/issue/createmeta/ONE/issuetypes"
 
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(400, json={"errors": {"priority": "Invalid priority"}})
 
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
+@pytest.mark.parametrize(
+    "issue_types,type_fields,paths,message",
+    [
+        (
+            httpx.Response(200, json=ISSUE_TYPES),
+            httpx.Response(200, json=TYPE_FIELDS),
+            [TYPES_PATH, f"{TYPES_PATH}/7"],
+            f"{INVALID} Valid priorities: High, Low.",
+        ),
+        (
+            httpx.Response(200, json=ISSUE_TYPES),
+            httpx.Response(200, json={"fields": [{"fieldId": "summary"}]}),
+            [TYPES_PATH, f"{TYPES_PATH}/7"],
+            INVALID,
+        ),
+        (
+            httpx.Response(200, json=ISSUE_TYPES),
+            httpx.Response(500),
+            [TYPES_PATH, f"{TYPES_PATH}/7"],
+            INVALID,
+        ),
+        (
+            httpx.Response(200, json={"issueTypes": [{"id": "1", "name": "Task"}]}),
+            None,
+            [TYPES_PATH],
+            INVALID,
+        ),
+        (httpx.Response(403), None, [TYPES_PATH], INVALID),
+    ],
+)
+async def test_create_issue_unknown_priority(
+    client, patch_async_client, issue_types, type_fields, paths, message
+):
+    """Test create_issue names the priority and lists the allowed ones."""
+    lookups = []
 
-    result = await client.create_issue(_params(priority="Unknown"))
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return PRIORITY_REJECTED
+        lookups.append(request.url.path)
+        return issue_types if request.url.path == TYPES_PATH else type_fields
 
-    assert result["isError"] is True
-    assert result["error"]["code"] == "INVALID_PRIORITY"
+    patch_async_client(httpx.MockTransport(handler))
+    result = await client.create_issue(_params(priority="Urgent", issue_type="bug"))
+
+    assert lookups == paths
+    assert result["error"] == {"code": "INVALID_PRIORITY", "message": message}
+
+
+async def test_create_issue_priority_error_without_priority(client, patch_async_client):
+    """Test create_issue keeps Jira's message when no priority was sent."""
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        errors = {"priority": "Priority is required"}
+        return httpx.Response(400, json={"errors": errors})
+
+    patch_async_client(httpx.MockTransport(handler))
+    result = await client.create_issue(_params())
+
+    assert len(requests) == 1
+    assert result["error"] == {
+        "code": "INVALID_PRIORITY",
+        "message": "Priority is required",
+    }
 
 
 @pytest.mark.asyncio

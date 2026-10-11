@@ -9,6 +9,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- `create_issue` names the rejected priority in `INVALID_PRIORITY` and lists
+  the ones the issue type accepts, matching `update_issue`
+
 ## [0.8.0] - 2026-10-11
 
 ### Added
