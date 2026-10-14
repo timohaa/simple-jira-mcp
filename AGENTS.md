@@ -32,6 +32,12 @@ threaded through 3+ functions; `find_dead_code` (run on the project root with
 `ignore_patterns: ["**/test_*.py", "**/tests/**"]`) flags unreferenced symbols
 and private methods.
 
+A limit never blocks or shrinks a requested change. If a change would push a
+file or function past a limit, refactor it first so the change fits, or make
+the change and refactor afterwards. In rare cases a file or function may
+stay over a limit, but only for a valid reason recorded in a comment at that
+code.
+
 Install once (needs Node 22+ and `tokei`, e.g. `brew install tokei`):
 `claude mcp add --scope user scopewalker-mcp -- npx -y scopewalker-mcp`.
 Source and docs: <https://github.com/timohaa/scopewalker-mcp>
