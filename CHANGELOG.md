@@ -9,6 +9,13 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- `list_sprints` lists sprints of a board or of all boards in a project
+  through the Jira Agile API
+- `move_issues_to_sprint` moves issues into a sprint in batches of 50
+- `BOARD_NOT_FOUND` and `SPRINT_NOT_FOUND` error codes
+
 ## [0.8.1] - 2026-10-11
 
 ### Changed

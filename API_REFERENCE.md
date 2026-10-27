@@ -16,9 +16,9 @@ tool runs. Examples include missing required arguments, wrong types,
 `limit` outside 1-100, and `fields` values outside the allowlist. These
 results set `isError` and contain the SDK's plain-text validation message.
 
-Tool annotations: `list_configs`, `search_issues`, `get_issue`, and
-`get_transitions` are marked read-only. `update_issue` and `delete_issue`
-are marked destructive and idempotent. The other four are marked
+Tool annotations: `list_configs`, `search_issues`, `get_issue`,
+`get_transitions`, and `list_sprints` are marked read-only. `update_issue` and
+`delete_issue` are marked destructive and idempotent. The other five are marked
 non-destructive and non-idempotent. Repeating an idempotent call leaves
 Jira in the same state. For example, repeating `delete_issue` leaves the
 issue deleted and returns `ISSUE_NOT_FOUND`.
@@ -201,6 +201,49 @@ Example inputs:
 - Errors: `ISSUE_NOT_FOUND`, `VALIDATION_ERROR`, `AUTH_FAILED`,
   `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
 
+### list_sprints
+
+- Purpose: List sprints so issues can be moved into one. Uses the Jira Agile
+  API (`/rest/agile/1.0`).
+- Inputs: `project_key` (PROJECT), `board_id` (positive integer), `state`
+  (comma-separated `active`, `future`, `closed`; default `active,future`),
+  `config_id` (optional). At least one of `project_key` and `board_id` is
+  required. `board_id` takes precedence over `project_key`.
+- Endpoints: With `project_key`, `GET /rest/agile/1.0/board?projectKeyOrId=<key>`
+  finds the boards. Then `GET /rest/agile/1.0/board/{boardId}/sprint?state=<state>`
+  runs for each board. Both follow `startAt`/`maxResults`/`isLast` until the last
+  page. Boards that do not support sprints (kanban) are skipped when found
+  through `project_key`. With an explicit `board_id`, Jira's rejection is
+  returned as `VALIDATION_ERROR`.
+- Returns: `{"sprints": [{"id": int, "name": str, "state": str,
+  "startDate": str | null, "endDate": str | null, "boardId": int,
+  "boardName": str | null}, ...]}`. `boardName` is null when `board_id` was
+  given.
+- Errors: `VALIDATION_ERROR`, `BOARD_NOT_FOUND`, `AUTH_FAILED`,
+  `CONFIG_NOT_FOUND`, `RATE_LIMITED`, `JIRA_ERROR`.
+
+### move_issues_to_sprint
+
+- Purpose: Move issues into a sprint, for example the current one from
+  `list_sprints`.
+- Inputs: `sprint_id` (positive integer), `issue_keys` (non-empty list of
+  PROJECT-123 keys), `config_id` (optional). Keys are trimmed, upper-cased,
+  and de-duplicated.
+- Endpoint: `POST /rest/agile/1.0/sprint/{sprintId}/issue` with
+  `{"issues": [...]}`. Jira accepts 50 issues per request, so longer lists
+  are sent in batches of 50 in order.
+- Returns: `{"sprint_id": int, "moved": [str, ...]}`.
+- Errors: `VALIDATION_ERROR` (including Jira rejections such as a closed
+  sprint), `SPRINT_NOT_FOUND`, `AUTH_FAILED`, `CONFIG_NOT_FOUND`,
+  `RATE_LIMITED`, `JIRA_ERROR`. If a later batch fails, earlier batches
+  stay moved and the error message lists their keys.
+
+Example inputs:
+
+```json
+{"sprint_id": 42, "issue_keys": ["ONE-1", "ONE-2"]}
+```
+
 ### download_attachment
 
 - Purpose: Download an attachment to disk.
@@ -231,6 +274,8 @@ Example inputs:
 | `CONFIG_NOT_FOUND`     | Unknown config_id or missing config |
 | `ISSUE_NOT_FOUND`      | Issue key does not exist            |
 | `PROJECT_NOT_FOUND`    | Project key does not exist          |
+| `BOARD_NOT_FOUND`      | Board ID does not exist             |
+| `SPRINT_NOT_FOUND`     | Sprint ID does not exist            |
 | `ATTACHMENT_NOT_FOUND` | Attachment ID not found on issue    |
 | `INVALID_JQL`          | Malformed JQL                       |
 | `UNBOUNDED_QUERY`      | Query lacks required filters        |
@@ -264,7 +309,8 @@ Example inputs:
   regardless of its total duration.
 - Timeouts return `JIRA_ERROR` from `search_issues`, `get_issue`,
   `create_issue`, `update_issue`, `delete_issue`, `get_transitions`,
-  `transition_issue`, and `add_comment`.
+  `transition_issue`, `add_comment`, `list_sprints`, and
+  `move_issues_to_sprint`.
 - `download_attachment` returns `JIRA_ERROR` if its initial metadata fetch
   times out. A timeout during the file transfer returns `DOWNLOAD_FAILED`.
 - Timeout messages come from the underlying httpx exception. They use the
@@ -284,6 +330,10 @@ Example inputs:
 - `issue_key` pattern: `^[A-Z][A-Z0-9]+-\d+$`;
   `project_key`: `^[A-Z][A-Z0-9]+$`. Both are trimmed and upper-cased first.
 - `attachment_id` must be numeric.
+- `list_sprints` needs `project_key` or `board_id`. `sprint_id` and `board_id`
+  must be positive. `state` accepts only `active`, `future`, and `closed`,
+  case-insensitive.
+- `move_issues_to_sprint` needs at least one valid `issue_key`.
 - `transition` and comment `body` must not be empty or whitespace-only.
   Optional transition `comment` and `resolution` must also be non-empty when
   supplied.

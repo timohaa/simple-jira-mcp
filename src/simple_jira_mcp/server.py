@@ -14,6 +14,7 @@ from simple_jira_mcp.config import load_configs
 from simple_jira_mcp.tools.configs import list_configs as _list_configs
 from simple_jira_mcp.tools.issue import get_issue as _get_issue
 from simple_jira_mcp.tools.search import search_issues as _search_issues
+from simple_jira_mcp.tools.sprint import list_sprints as _list_sprints
 from simple_jira_mcp.tools.workflow import get_transitions as _get_transitions
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,35 @@ async def get_transitions(
     """Get available transitions and transition screen fields."""
     log_call("get_transitions", issue_key=issue_key, config_id=config_id)
     return tool_result(await _get_transitions(issue_key, config_id=config_id))
+
+
+@mcp.tool(
+    title="List Jira sprints",
+    description=(
+        "List sprints of a Jira board, or of every board in a project, using the "
+        "Agile API. Give project_key or board_id. state is a comma-separated "
+        "filter of active, future, closed. Returns sprint id, name, state, "
+        "startDate, endDate, boardId, and boardName. Use an id with "
+        "move_issues_to_sprint."
+    ),
+    annotations=READ_ONLY,
+)
+async def list_sprints(
+    project_key: schemas.SprintProjectKey = None,
+    board_id: schemas.BoardId = None,
+    state: schemas.SprintStates = "active,future",
+    config_id: schemas.ConfigId = None,
+) -> CallToolResult:
+    """List sprints of a board or project."""
+    log_call("list_sprints", project_key=project_key, config_id=config_id)
+    return tool_result(
+        await _list_sprints(
+            project_key=project_key,
+            board_id=board_id,
+            state=state,
+            config_id=config_id,
+        )
+    )
 
 
 async def main() -> None:

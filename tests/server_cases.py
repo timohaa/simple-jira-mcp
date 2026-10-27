@@ -44,6 +44,14 @@ SCHEMAS = {
         {"issue_key", "transition"},
     ),
     "add_comment": ({"issue_key", "body", "config_id"}, {"issue_key", "body"}),
+    "list_sprints": (
+        {"project_key", "board_id", "state", "config_id"},
+        set(),
+    ),
+    "move_issues_to_sprint": (
+        {"sprint_id", "issue_keys", "config_id"},
+        {"sprint_id", "issue_keys"},
+    ),
     "download_attachment": (
         {"issue_key", "attachment_id", "output_dir", "config_id"},
         {"issue_key", "attachment_id"},
@@ -170,6 +178,29 @@ CALLS = [
         {"config_id": "work"},
     ),
     (
+        "list_sprints",
+        {"project_key": "ONE", "board_id": 3, "state": "closed", "config_id": "work"},
+        (),
+        {"project_key": "ONE", "board_id": 3, "state": "closed", "config_id": "work"},
+    ),
+    (
+        "list_sprints",
+        {"project_key": "ONE"},
+        (),
+        {
+            "project_key": "ONE",
+            "board_id": None,
+            "state": "active,future",
+            "config_id": None,
+        },
+    ),
+    (
+        "move_issues_to_sprint",
+        {"sprint_id": 7, "issue_keys": ["ONE-1"], "config_id": "work"},
+        (7, ["ONE-1"]),
+        {"config_id": "work"},
+    ),
+    (
         "download_attachment",
         {
             "issue_key": "ONE-123",
@@ -183,5 +214,11 @@ CALLS = [
 ]
 
 
-READ_ONLY_TOOLS = {"list_configs", "search_issues", "get_issue", "get_transitions"}
+READ_ONLY_TOOLS = {
+    "list_configs",
+    "search_issues",
+    "get_issue",
+    "get_transitions",
+    "list_sprints",
+}
 DESTRUCTIVE_TOOLS = {"update_issue", "delete_issue"}

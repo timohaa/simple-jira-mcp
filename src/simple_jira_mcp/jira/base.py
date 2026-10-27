@@ -29,6 +29,7 @@ HTTP_NOT_FOUND = 404
 HTTP_TOO_MANY_REQUESTS = 429
 
 API_BASE = "/rest/api/3"
+AGILE_BASE = "/rest/agile/1.0"
 SEARCH_PATH = f"{API_BASE}/search/jql"
 ISSUE_PATH = f"{API_BASE}/issue"
 ATTACHMENT_PATH = f"{API_BASE}/attachment/content"
@@ -94,8 +95,18 @@ class JiraClientBase:
         params: dict[str, str] | None = None,
         payload: dict[str, Any] | None = None,
         success_status: int = HTTP_OK,
+        not_found: tuple[str, str] = (ISSUE_NOT_FOUND, "Issue not found"),
     ) -> dict[str, Any] | ErrorResponse:
-        """Send an issue request and map the response to a result or error."""
+        """Send a request and map the response to a result or error.
+
+        Args:
+            method: HTTP method.
+            url: Absolute request URL.
+            params: Query parameters.
+            payload: JSON body.
+            success_status: Status code that signals success.
+            not_found: Error code and message returned for a 404 response.
+        """
         try:
             response = await self._http.request(
                 method, url, params=params, json=payload
@@ -106,7 +117,7 @@ class JiraClientBase:
 
         status_errors = {
             HTTP_UNAUTHORIZED: (AUTH_FAILED, "Invalid credentials"),
-            HTTP_NOT_FOUND: (ISSUE_NOT_FOUND, "Issue not found"),
+            HTTP_NOT_FOUND: not_found,
             HTTP_TOO_MANY_REQUESTS: (RATE_LIMITED, "Too many requests to Jira API"),
         }
         if response.status_code in status_errors:

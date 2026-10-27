@@ -8,6 +8,7 @@ from simple_jira_mcp.tools.attachment import download_attachment as _download_at
 from simple_jira_mcp.tools.create import create_issue as _create_issue
 from simple_jira_mcp.tools.edit import delete_issue as _delete_issue
 from simple_jira_mcp.tools.edit import update_issue as _update_issue
+from simple_jira_mcp.tools.sprint import move_issues_to_sprint as _move_issues_to_sprint
 from simple_jira_mcp.tools.workflow import add_comment as _add_comment
 from simple_jira_mcp.tools.workflow import transition_issue as _transition_issue
 
@@ -176,4 +177,24 @@ async def download_attachment(
             output_dir=output_dir,
             config_id=config_id,
         )
+    )
+
+
+@mcp.tool(
+    title="Move Jira issues to sprint",
+    description=(
+        "Move issues into a sprint (Agile API), in batches of 50. Get the sprint "
+        "ID from list_sprints. Returns the sprint ID and the moved issue keys."
+    ),
+    annotations=WRITE,
+)
+async def move_issues_to_sprint(
+    sprint_id: schemas.SprintId,
+    issue_keys: schemas.IssueKeys,
+    config_id: schemas.ConfigId = None,
+) -> CallToolResult:
+    """Move issues into a sprint."""
+    log_call("move_issues_to_sprint", config_id=config_id)
+    return tool_result(
+        await _move_issues_to_sprint(sprint_id, issue_keys, config_id=config_id)
     )

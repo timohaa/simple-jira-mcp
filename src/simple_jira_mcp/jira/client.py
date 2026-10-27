@@ -9,12 +9,14 @@ Call Jira operations through JiraClient. Each module implements an operation gro
 - attachment.py: Attachment download operations
 - workflow.py: Issue transitions and comments
 - edit.py: Issue updates and deletion
+- agile.py: Board and sprint operations (Agile REST API)
 """
 
 from pathlib import Path
 from typing import Any
 
 from simple_jira_mcp.config import JiraConfig, get_config
+from simple_jira_mcp.jira.agile import AgileOperation
 from simple_jira_mcp.jira.attachment import AttachmentOperation
 from simple_jira_mcp.jira.base import HttpSession
 from simple_jira_mcp.jira.create import CreateIssueParams, CreateOperation
@@ -63,6 +65,7 @@ class JiraClient:
         self._attachment = AttachmentOperation(config, self._session)
         self._workflow = WorkflowOperation(config, self._session)
         self._edit = EditOperation(config, self._session)
+        self._agile = AgileOperation(config, self._session)
 
     async def aclose(self) -> None:
         """Close the pooled HTTP connections."""
@@ -167,6 +170,24 @@ class JiraClient:
     ) -> dict[str, Any] | ErrorResponse:
         """Permanently delete an issue."""
         return await self._edit.delete_issue(issue_key, delete_subtasks=delete_subtasks)
+
+    async def list_sprints(
+        self,
+        *,
+        project_key: str | None,
+        board_id: int | None,
+        states: list[str],
+    ) -> dict[str, Any] | ErrorResponse:
+        """List sprints of a board, or of every board in a project."""
+        return await self._agile.list_sprints(
+            project_key=project_key, board_id=board_id, states=states
+        )
+
+    async def move_issues_to_sprint(
+        self, sprint_id: int, issue_keys: list[str]
+    ) -> dict[str, Any] | ErrorResponse:
+        """Move issues into a sprint."""
+        return await self._agile.move_issues_to_sprint(sprint_id, issue_keys)
 
     async def download_attachment(
         self,

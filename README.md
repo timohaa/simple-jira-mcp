@@ -10,6 +10,7 @@ for AI agents.
 - Create, update, and delete issues
 - List available transitions and transition issues with screen fields
 - Add comments, including comments posted with a transition
+- List sprints and move issues into a sprint
 - Download attachments
 - Connect to multiple Jira instances
 
@@ -21,7 +22,7 @@ Use this server to run Jira tools locally with your API token:
   one with `config_id`.
 - Download attachments to disk.
 - Search, read, create, update, delete, transition, and comment on issues
-  through ten tools.
+  through twelve tools.
 - Choose search response fields and read descriptions and comments as plain
   text.
 
@@ -282,18 +283,20 @@ On Windows, use full paths with backslashes:
 
 ## Available Tools
 
-| Tool                  | Description                          |
-|-----------------------|--------------------------------------|
-| `list_configs`        | List available Jira configurations   |
-| `search_issues`       | Search issues using JQL              |
-| `get_issue`           | Get detailed issue information       |
-| `create_issue`        | Create a new issue                   |
-| `update_issue`        | Change fields on an issue            |
-| `delete_issue`        | Permanently delete an issue          |
-| `get_transitions`     | List transitions and screen fields   |
-| `transition_issue`    | Transition an issue by ID or name    |
-| `add_comment`         | Add a plain-text comment             |
-| `download_attachment` | Download an attachment from an issue |
+| Tool                    | Description                          |
+|-------------------------|--------------------------------------|
+| `list_configs`          | List available Jira configurations   |
+| `search_issues`         | Search issues using JQL              |
+| `get_issue`             | Get detailed issue information       |
+| `create_issue`          | Create a new issue                   |
+| `update_issue`          | Change fields on an issue            |
+| `delete_issue`          | Permanently delete an issue          |
+| `get_transitions`       | List transitions and screen fields   |
+| `transition_issue`      | Transition an issue by ID or name    |
+| `add_comment`           | Add a plain-text comment             |
+| `list_sprints`          | List sprints of a project or board   |
+| `move_issues_to_sprint` | Move issues into a sprint            |
+| `download_attachment`   | Download an attachment from an issue |
 
 ## Usage Notes
 
@@ -339,6 +342,13 @@ On Windows, use full paths with backslashes:
   completion date in the comment.
 - `add_comment`: Converts plain text to ADF and returns the comment ID and
   creation time.
+- `list_sprints`: Needs `project_key` or `board_id` (`board_id` wins). Lists
+  sprints through the Jira Agile API, across all of a project's boards, filtered
+  by `state` (default `active,future`; also `closed`). Returns `id`, `name`,
+  `state`, `startDate`, `endDate`, `boardId`, and `boardName`.
+- `move_issues_to_sprint`: Moves issues into the sprint `sprint_id`, sending
+  at most 50 per request. Returns the sprint ID and the moved keys. Use
+  `list_sprints` to find the sprint ID.
 - `download_attachment`: `output_dir` must exist when provided. It defaults
   to the current working directory. Files are saved to
   `<output_dir>/<issue_key>/` with sanitized filenames. If the filename is

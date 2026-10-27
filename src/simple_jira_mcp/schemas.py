@@ -108,3 +108,23 @@ OutputDir = Annotated[
         )
     ),
 ]
+
+# list_sprints
+SprintProjectKey = Annotated[
+    str | None,
+    Field(description="Project key, e.g. ONE. Lists sprints of all its boards."),
+]
+BoardId = Annotated[
+    int | None,
+    Field(description="Board ID. Takes precedence over project_key."),
+]
+SprintStates = Annotated[
+    str,
+    Field(description="Comma-separated sprint states: active, future, closed."),
+]
+
+# move_issues_to_sprint
+SprintId = Annotated[int, Field(description="Sprint ID from list_sprints.")]
+IssueKeys = Annotated[
+    list[str], Field(description='Issue keys to move, e.g. ["ONE-1", "ONE-2"].')
+]

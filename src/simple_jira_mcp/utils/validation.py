@@ -8,6 +8,8 @@ ISSUE_KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
 PROJECT_KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9]+$")
 ATTACHMENT_ID_PATTERN = re.compile(r"^\d+$")
 
+SPRINT_STATES = frozenset({"active", "future", "closed"})
+
 MAX_LIMIT = 100
 MIN_LIMIT = 1
 DISALLOWED_JQL_PATTERN = re.compile(r"[;\r\n]")
@@ -83,6 +85,22 @@ def validate_attachment_id(attachment_id: str) -> bool:
         True if valid (numeric string), False otherwise.
     """
     return bool(ATTACHMENT_ID_PATTERN.match(attachment_id))
+
+
+def parse_sprint_states(states: str) -> list[str] | None:
+    """Split a comma-separated sprint state filter.
+
+    Args:
+        states: Value such as "active,future".
+
+    Returns:
+        The lower-cased states in order without duplicates, or None when the
+        value is empty or names an unknown state.
+    """
+    parsed = list(dict.fromkeys(s.strip().lower() for s in states.split(",")))
+    if not parsed or not all(state in SPRINT_STATES for state in parsed):
+        return None
+    return parsed
 
 
 def validate_limit(limit: int) -> bool:
