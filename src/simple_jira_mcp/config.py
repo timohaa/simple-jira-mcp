@@ -26,8 +26,15 @@ class JiraConfig:
     timeout: float = DEFAULT_TIMEOUT
 
 
-_configs: list[JiraConfig] = []
-_default_config_id: str | None = None
+@dataclass
+class _ConfigState:
+    """The configurations loaded by load_configs and the default's ID."""
+
+    configs: list[JiraConfig] = field(default_factory=list)
+    default_config_id: str | None = None
+
+
+_state = _ConfigState()
 
 
 def _parse_timeout(item: dict[str, Any]) -> float:
@@ -109,8 +116,6 @@ def load_configs() -> list[JiraConfig]:
         ValueError: If JIRA_CONFIG_JSON is not set or invalid, or two configs
             share an id.
     """
-    global _configs, _default_config_id  # noqa: PLW0603
-
     config_json = os.environ.get("JIRA_CONFIG_JSON")
     if not config_json:
         msg = "JIRA_CONFIG_JSON environment variable not set"
@@ -134,10 +139,10 @@ def load_configs() -> list[JiraConfig]:
             raise ValueError(msg)
         configs.append(config)
 
-    _configs = configs
-    _default_config_id = configs[0].id
-    logger.info("Loaded %d Jira configuration(s)", len(_configs))
-    return _configs
+    _state.configs = configs
+    _state.default_config_id = configs[0].id
+    logger.info("Loaded %d Jira configuration(s)", len(configs))
+    return configs
 
 
 def get_configs() -> list[JiraConfig]:
@@ -146,7 +151,7 @@ def get_configs() -> list[JiraConfig]:
     Returns:
         List of JiraConfig instances.
     """
-    return _configs
+    return _state.configs
 
 
 def get_config(config_id: str | None = None) -> JiraConfig | None:
@@ -158,11 +163,11 @@ def get_config(config_id: str | None = None) -> JiraConfig | None:
     Returns:
         JiraConfig if found, None otherwise.
     """
-    target_id = config_id or _default_config_id
+    target_id = config_id or _state.default_config_id
     if not target_id:
         return None
 
-    for config in _configs:
+    for config in _state.configs:
         if config.id == target_id:
             return config
     return None
@@ -174,11 +179,10 @@ def get_default_config_id() -> str | None:
     Returns:
         The default config ID, or None if no configs loaded.
     """
-    return _default_config_id
+    return _state.default_config_id
 
 
 def reset_config_state() -> None:
     """Clear cached configuration state for tests."""
-    global _configs, _default_config_id  # noqa: PLW0603
-    _configs = []
-    _default_config_id = None
+    _state.configs = []
+    _state.default_config_id = None

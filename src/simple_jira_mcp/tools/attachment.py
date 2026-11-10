@@ -14,7 +14,25 @@ from simple_jira_mcp.utils.errors import (
 from simple_jira_mcp.utils.validation import validate_attachment_id, validate_issue_key
 
 
-def _validate_inputs(  # noqa: PLR0911
+def _resolve_output_dir(output_dir: str | None) -> Path | ErrorResponse:
+    """Return the directory to save into, defaulting to the working directory."""
+    if not output_dir:
+        return Path.cwd()
+    out_path = Path(output_dir)
+    if not out_path.exists():
+        return error_response(
+            VALIDATION_ERROR,
+            f"Output directory does not exist: '{output_dir}'",
+        )
+    if not out_path.is_dir():
+        return error_response(
+            VALIDATION_ERROR,
+            f"Output path is not a directory: '{output_dir}'",
+        )
+    return out_path
+
+
+def _validate_inputs(
     issue_key: str,
     attachment_id: str,
     output_dir: str | None,
@@ -42,20 +60,9 @@ def _validate_inputs(  # noqa: PLR0911
             f"Invalid attachment ID: '{normalized_att_id}'. Must be numeric.",
         )
 
-    if not output_dir:
-        out_path = Path.cwd()
-    else:
-        out_path = Path(output_dir)
-        if not out_path.exists():
-            return error_response(
-                VALIDATION_ERROR,
-                f"Output directory does not exist: '{output_dir}'",
-            )
-        if not out_path.is_dir():
-            return error_response(
-                VALIDATION_ERROR,
-                f"Output path is not a directory: '{output_dir}'",
-            )
+    out_path = _resolve_output_dir(output_dir)
+    if is_error(out_path):
+        return out_path
 
     return (normalized_key, normalized_att_id, out_path)
 

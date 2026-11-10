@@ -6,8 +6,6 @@ import sys
 
 from mcp.types import CallToolResult, ToolAnnotations
 
-# Imported for its side effect of registering the write tools.
-import simple_jira_mcp.write_tools  # noqa: F401
 from simple_jira_mcp import schemas
 from simple_jira_mcp.app import READ_ONLY, log_call, mcp, tool_result
 from simple_jira_mcp.config import load_configs
@@ -16,8 +14,11 @@ from simple_jira_mcp.tools.issue import get_issue as _get_issue
 from simple_jira_mcp.tools.search import search_issues as _search_issues
 from simple_jira_mcp.tools.sprint import list_sprints as _list_sprints
 from simple_jira_mcp.tools.workflow import get_transitions as _get_transitions
+from simple_jira_mcp.write_tools import register_write_tools
 
 logger = logging.getLogger(__name__)
+
+register_write_tools(mcp)
 
 
 @mcp.tool(

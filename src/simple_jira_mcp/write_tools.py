@@ -1,9 +1,10 @@
 """Registration of the MCP tools that change Jira or local files."""
 
+from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult
 
 from simple_jira_mcp import schemas
-from simple_jira_mcp.app import DESTRUCTIVE, WRITE, log_call, mcp, tool_result
+from simple_jira_mcp.app import DESTRUCTIVE, WRITE, log_call, tool_result
 from simple_jira_mcp.tools.attachment import download_attachment as _download_attachment
 from simple_jira_mcp.tools.create import create_issue as _create_issue
 from simple_jira_mcp.tools.edit import delete_issue as _delete_issue
@@ -13,11 +14,6 @@ from simple_jira_mcp.tools.workflow import add_comment as _add_comment
 from simple_jira_mcp.tools.workflow import transition_issue as _transition_issue
 
 
-@mcp.tool(
-    title="Create Jira issue",
-    description="Create a Jira issue. Returns issue key and URL.",
-    annotations=WRITE,
-)
 async def create_issue(
     project_key: schemas.ProjectKey,
     summary: schemas.Summary,
@@ -44,16 +40,6 @@ async def create_issue(
     )
 
 
-@mcp.tool(
-    title="Update Jira issue",
-    description=(
-        "Update fields on a Jira issue. Omitted parameters stay unchanged. Labels "
-        "replace the current set. Pass other Jira fields through fields. "
-        'Use a null value to clear a field, e.g. {"assignee": null}. '
-        "Returns the updated field IDs. To change status, use transition_issue."
-    ),
-    annotations=DESTRUCTIVE,
-)
 async def update_issue(
     issue_key: schemas.IssueKey,
     summary: schemas.NewSummary = None,
@@ -80,14 +66,6 @@ async def update_issue(
     )
 
 
-@mcp.tool(
-    title="Delete Jira issue",
-    description=(
-        "Permanently delete a Jira issue. Jira cannot restore it. An issue with "
-        "subtasks is only deleted when delete_subtasks is true."
-    ),
-    annotations=DESTRUCTIVE,
-)
 async def delete_issue(
     issue_key: schemas.IssueKey,
     delete_subtasks: schemas.DeleteSubtasks = False,
@@ -102,19 +80,6 @@ async def delete_issue(
     )
 
 
-@mcp.tool(
-    title="Transition Jira issue",
-    description=(
-        "Transition a Jira issue using a transition ID or a case-insensitive "
-        "transition or target status name. An optional plain-text comment is posted "
-        "with the transition when the screen accepts comments. Otherwise, it is "
-        "posted immediately afterwards. Resolution and fields must be accepted by "
-        "the transition screen. Returns the new status, resolution, and "
-        "resolutiondate. Jira sets resolutiondate itself. The API cannot edit it. "
-        "Record the actual completion date in the comment."
-    ),
-    annotations=WRITE,
-)
 async def transition_issue(
     issue_key: schemas.IssueKey,
     transition: schemas.Transition,
@@ -137,11 +102,6 @@ async def transition_issue(
     )
 
 
-@mcp.tool(
-    title="Add Jira comment",
-    description="Add a plain-text comment to a Jira issue. Returns ID and created.",
-    annotations=WRITE,
-)
 async def add_comment(
     issue_key: schemas.IssueKey,
     body: schemas.CommentBody,
@@ -152,11 +112,6 @@ async def add_comment(
     return tool_result(await _add_comment(issue_key, body, config_id=config_id))
 
 
-@mcp.tool(
-    title="Download Jira attachment",
-    description="Download an attachment from a Jira issue to a local file.",
-    annotations=WRITE,
-)
 async def download_attachment(
     issue_key: schemas.IssueKey,
     attachment_id: schemas.AttachmentId,
@@ -180,14 +135,6 @@ async def download_attachment(
     )
 
 
-@mcp.tool(
-    title="Move Jira issues to sprint",
-    description=(
-        "Move issues into a sprint (Agile API), in batches of 50. Get the sprint "
-        "ID from list_sprints. Returns the sprint ID and the moved issue keys."
-    ),
-    annotations=WRITE,
-)
 async def move_issues_to_sprint(
     sprint_id: schemas.SprintId,
     issue_keys: schemas.IssueKeys,
@@ -197,4 +144,69 @@ async def move_issues_to_sprint(
     log_call("move_issues_to_sprint", config_id=config_id)
     return tool_result(
         await _move_issues_to_sprint(sprint_id, issue_keys, config_id=config_id)
+    )
+
+
+def register_write_tools(server: MCPServer[None]) -> None:
+    """Register the tools that change Jira or local files on the server."""
+    server.add_tool(
+        create_issue,
+        title="Create Jira issue",
+        description="Create a Jira issue. Returns issue key and URL.",
+        annotations=WRITE,
+    )
+    server.add_tool(
+        update_issue,
+        title="Update Jira issue",
+        description=(
+            "Update fields on a Jira issue. Omitted parameters stay unchanged. Labels "
+            "replace the current set. Pass other Jira fields through fields. "
+            'Use a null value to clear a field, e.g. {"assignee": null}. '
+            "Returns the updated field IDs. To change status, use transition_issue."
+        ),
+        annotations=DESTRUCTIVE,
+    )
+    server.add_tool(
+        delete_issue,
+        title="Delete Jira issue",
+        description=(
+            "Permanently delete a Jira issue. Jira cannot restore it. An issue with "
+            "subtasks is only deleted when delete_subtasks is true."
+        ),
+        annotations=DESTRUCTIVE,
+    )
+    server.add_tool(
+        transition_issue,
+        title="Transition Jira issue",
+        description=(
+            "Transition a Jira issue using a transition ID or a case-insensitive "
+            "transition or target status name. An optional plain-text comment is "
+            "posted with the transition when the screen accepts comments. Otherwise, "
+            "it is posted immediately afterwards. Resolution and fields must be "
+            "accepted by the transition screen. Returns the new status, resolution, "
+            "and resolutiondate. Jira sets resolutiondate itself. The API cannot edit "
+            "it. Record the actual completion date in the comment."
+        ),
+        annotations=WRITE,
+    )
+    server.add_tool(
+        add_comment,
+        title="Add Jira comment",
+        description="Add a plain-text comment to a Jira issue. Returns ID and created.",
+        annotations=WRITE,
+    )
+    server.add_tool(
+        download_attachment,
+        title="Download Jira attachment",
+        description="Download an attachment from a Jira issue to a local file.",
+        annotations=WRITE,
+    )
+    server.add_tool(
+        move_issues_to_sprint,
+        title="Move Jira issues to sprint",
+        description=(
+            "Move issues into a sprint (Agile API), in batches of 50. Get the sprint "
+            "ID from list_sprints. Returns the sprint ID and the moved issue keys."
+        ),
+        annotations=WRITE,
     )

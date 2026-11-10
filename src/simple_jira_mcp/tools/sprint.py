@@ -14,6 +14,29 @@ from simple_jira_mcp.utils.validation import (
 )
 
 
+def _sprint_scope_error(
+    project_key: str | None, board_id: int | None
+) -> ToolResult | None:
+    """Return a validation error for the project/board selector, if invalid."""
+    if board_id is not None:
+        if board_id < 1:
+            return error_response(
+                VALIDATION_ERROR, "board_id must be a positive integer"
+            )
+        return None
+    if not (project_key and project_key.strip()):
+        return error_response(
+            VALIDATION_ERROR, "Either project_key or board_id is required"
+        )
+    key = project_key.strip().upper()
+    if not validate_project_key(key):
+        return error_response(
+            VALIDATION_ERROR,
+            f"Invalid project key format: '{key}'. Expected format: PROJECT",
+        )
+    return None
+
+
 async def list_sprints(
     project_key: str | None = None,
     board_id: int | None = None,
@@ -21,18 +44,9 @@ async def list_sprints(
     config_id: str | None = None,
 ) -> ToolResult:
     """List sprints of a board, or of every board in a project."""
-    if board_id is None and not (project_key and project_key.strip()):
-        return error_response(
-            VALIDATION_ERROR, "Either project_key or board_id is required"
-        )
-    if board_id is not None and board_id < 1:
-        return error_response(VALIDATION_ERROR, "board_id must be a positive integer")
-    key = project_key.strip().upper() if project_key else None
-    if board_id is None and not validate_project_key(str(key)):
-        return error_response(
-            VALIDATION_ERROR,
-            f"Invalid project key format: '{key}'. Expected format: PROJECT",
-        )
+    scope_error = _sprint_scope_error(project_key, board_id)
+    if scope_error is not None:
+        return scope_error
     states = parse_sprint_states(state)
     if states is None:
         return error_response(
@@ -43,11 +57,8 @@ async def list_sprints(
     client = get_client(config_id)
     if is_error(client):
         return client
-    return await client.list_sprints(
-        project_key=key if board_id is None else None,
-        board_id=board_id,
-        states=states,
-    )
+    key = project_key.strip().upper() if project_key and board_id is None else None
+    return await client.list_sprints(project_key=key, board_id=board_id, states=states)
 
 
 async def move_issues_to_sprint(
