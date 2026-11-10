@@ -1,59 +1,11 @@
 """Tests for create_issue tool with mocked Jira API."""
 
 import json
-import os
-from functools import partial
 
 import httpx
 import pytest
 
-import simple_jira_mcp.config
-from simple_jira_mcp.config import reset_config_state
 from simple_jira_mcp.tools.create import create_issue
-from simple_jira_mcp.utils.errors import INVALID_ISSUE_TYPE, INVALID_PRIORITY
-
-
-@pytest.fixture
-def clean_config():
-    """Reset config state before and after each test."""
-    original = os.environ.get("JIRA_CONFIG_JSON")
-
-    reset_config_state()
-
-    yield
-
-    if original:
-        os.environ["JIRA_CONFIG_JSON"] = original
-    elif "JIRA_CONFIG_JSON" in os.environ:
-        del os.environ["JIRA_CONFIG_JSON"]
-
-    reset_config_state()
-
-
-@pytest.fixture
-def mock_config(clean_config):
-    """Set up a test config."""
-    config_data = [
-        {
-            "id": "test",
-            "url": "https://test.atlassian.net",
-            "email": "test@example.com",
-            "token": "test-token",
-        }
-    ]
-    os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-    simple_jira_mcp.config.load_configs()
-
-
-@pytest.fixture
-def patch_httpx_client(monkeypatch):
-    """Patch httpx.AsyncClient in Jira modules to use a mock transport."""
-
-    def _apply(transport: httpx.MockTransport) -> None:
-        async_client = partial(httpx.AsyncClient, transport=transport)
-        monkeypatch.setattr("simple_jira_mcp.jira.base.httpx.AsyncClient", async_client)
-
-    return _apply
 
 
 class TestCreateIssueValidation:
@@ -77,7 +29,7 @@ class TestCreateIssueValidation:
 
     @pytest.mark.asyncio
     async def test_lowercase_project_key_normalized(
-        self, mock_config, patch_httpx_client
+        self, mock_config, patch_async_client
     ):
         recorded: dict[str, object] = {}
 
@@ -86,7 +38,7 @@ class TestCreateIssueValidation:
             return httpx.Response(201, json={"key": "ONE-1", "id": "1"})
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         await create_issue("one", "Test summary")
 
@@ -128,7 +80,7 @@ class TestCreateIssueValidation:
 class TestCreateIssueIntegration:
     @pytest.mark.asyncio
     async def test_create_issue_integration_success(
-        self, mock_config, patch_httpx_client
+        self, mock_config, patch_async_client
     ):
         recorded: dict[str, object] = {}
 
@@ -140,7 +92,7 @@ class TestCreateIssueIntegration:
             )
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         result = await create_issue(
             "ONE",
@@ -164,7 +116,7 @@ class TestCreateIssueIntegration:
 
     @pytest.mark.asyncio
     async def test_create_issue_integration_default_issue_type(
-        self, mock_config, patch_httpx_client
+        self, mock_config, patch_async_client
     ):
         recorded: dict[str, object] = {}
 
@@ -173,7 +125,7 @@ class TestCreateIssueIntegration:
             return httpx.Response(201, json={"key": "ONE-456", "id": "456"})
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         result = await create_issue("ONE", "New issue")
 
@@ -184,34 +136,34 @@ class TestCreateIssueIntegration:
 class TestCreateIssueApiErrors:
     @pytest.mark.asyncio
     async def test_create_issue_integration_invalid_issue_type(
-        self, mock_config, patch_httpx_client
+        self, mock_config, patch_async_client
     ):
         async def handler(_: httpx.Request) -> httpx.Response:
             return httpx.Response(400, json={"errors": {"issuetype": "Invalid type"}})
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         result = await create_issue("ONE", "Summary", issue_type="Invalid")
 
         assert result["isError"] is True
-        assert result["error"]["code"] == INVALID_ISSUE_TYPE
+        assert result["error"]["code"] == "INVALID_ISSUE_TYPE"
 
     @pytest.mark.asyncio
     async def test_create_issue_integration_invalid_priority(
-        self, mock_config, patch_httpx_client
+        self, mock_config, patch_async_client
     ):
         async def handler(_: httpx.Request) -> httpx.Response:
             error_json = {"errors": {"priority": "Invalid priority"}}
             return httpx.Response(400, json=error_json)
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         result = await create_issue("ONE", "Summary", priority="Unknown")
 
         assert result["isError"] is True
-        assert result["error"]["code"] == INVALID_PRIORITY
+        assert result["error"]["code"] == "INVALID_PRIORITY"
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -224,13 +176,13 @@ class TestCreateIssueApiErrors:
         ],
     )
     async def test_create_issue_integration_http_errors(
-        self, mock_config, patch_httpx_client, status, expected_code
+        self, mock_config, patch_async_client, status, expected_code
     ):
         async def handler(_: httpx.Request) -> httpx.Response:
             return httpx.Response(status, json={"errors": {"summary": "Error"}})
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         result = await create_issue("ONE", "Test summary")
 

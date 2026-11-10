@@ -224,7 +224,7 @@ async def test_download_streams_body_and_reports_size(client, patch_async_client
         )
 
         assert Path(result["path"]).read_bytes() == payload
-        assert result["size_kb"] == round(len(payload) / 1024, 2)
+        assert result["size_kb"] == 292.97
         assert result["mime_type"] == "application/zip"
 
 

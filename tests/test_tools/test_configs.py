@@ -6,25 +6,7 @@ import os
 import pytest
 
 import simple_jira_mcp.config
-from simple_jira_mcp.config import DEFAULT_TIMEOUT, reset_config_state
 from simple_jira_mcp.tools.configs import list_configs
-
-
-@pytest.fixture
-def clean_config():
-    """Reset config state before and after each test."""
-    original = os.environ.get("JIRA_CONFIG_JSON")
-
-    reset_config_state()
-
-    yield
-
-    if original:
-        os.environ["JIRA_CONFIG_JSON"] = original
-    elif "JIRA_CONFIG_JSON" in os.environ:
-        del os.environ["JIRA_CONFIG_JSON"]
-
-    reset_config_state()
 
 
 @pytest.fixture
@@ -86,7 +68,7 @@ class TestListConfigs:
         assert result["configs"][0]["id"] == "work"
         assert result["configs"][0]["url"] == "https://work.atlassian.net"
         assert result["configs"][0]["default"] is True
-        assert result["configs"][0]["timeout"] == DEFAULT_TIMEOUT
+        assert result["configs"][0]["timeout"] == 30.0
 
     @pytest.mark.asyncio
     async def test_surfaces_configured_timeout(self, clean_config):

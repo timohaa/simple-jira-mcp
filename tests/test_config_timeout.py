@@ -5,24 +5,7 @@ import os
 
 import pytest
 
-from simple_jira_mcp.config import DEFAULT_TIMEOUT, load_configs, reset_config_state
-
-
-@pytest.fixture
-def clean_config():
-    """Reset config state before and after each test."""
-    original = os.environ.get("JIRA_CONFIG_JSON")
-
-    reset_config_state()
-
-    yield
-
-    if original:
-        os.environ["JIRA_CONFIG_JSON"] = original
-    elif "JIRA_CONFIG_JSON" in os.environ:
-        del os.environ["JIRA_CONFIG_JSON"]
-
-    reset_config_state()
+from simple_jira_mcp.config import load_configs
 
 
 class TestLoadConfigsTimeout:
@@ -42,7 +25,7 @@ class TestLoadConfigsTimeout:
     def test_defaults_when_omitted(self, clean_config):
         self._set_env()
 
-        assert load_configs()[0].timeout == DEFAULT_TIMEOUT
+        assert load_configs()[0].timeout == 30.0
 
     def test_honours_explicit_value(self, clean_config):
         self._set_env(timeout=90)
@@ -78,7 +61,7 @@ class TestLoadConfigsTimeout:
         configs = load_configs()
 
         assert configs[0].timeout == 5.0
-        assert configs[1].timeout == DEFAULT_TIMEOUT
+        assert configs[1].timeout == 30.0
 
     def test_raises_on_string(self, clean_config):
         self._set_env(timeout="30")

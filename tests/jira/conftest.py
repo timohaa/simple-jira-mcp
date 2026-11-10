@@ -1,8 +1,5 @@
 """Shared fixtures for Jira client tests."""
 
-from functools import partial
-
-import httpx
 import pytest
 
 from simple_jira_mcp.config import JiraConfig
@@ -19,17 +16,6 @@ def client():
         token="token",
     )
     return JiraClient(config)
-
-
-@pytest.fixture
-def patch_async_client(monkeypatch):
-    """Patch httpx.AsyncClient in all Jira operation modules."""
-
-    def _apply(transport: httpx.MockTransport) -> None:
-        async_client = partial(httpx.AsyncClient, transport=transport)
-        monkeypatch.setattr("simple_jira_mcp.jira.base.httpx.AsyncClient", async_client)
-
-    return _apply
 
 
 @pytest.fixture

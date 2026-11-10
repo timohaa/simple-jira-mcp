@@ -2,6 +2,7 @@
 
 import json
 import os
+from dataclasses import FrozenInstanceError
 
 import pytest
 
@@ -10,25 +11,7 @@ from simple_jira_mcp.config import (
     get_config,
     get_default_config_id,
     load_configs,
-    reset_config_state,
 )
-
-
-@pytest.fixture
-def clean_config():
-    """Reset config state before and after each test."""
-    original = os.environ.get("JIRA_CONFIG_JSON")
-
-    reset_config_state()
-
-    yield
-
-    if original:
-        os.environ["JIRA_CONFIG_JSON"] = original
-    elif "JIRA_CONFIG_JSON" in os.environ:
-        del os.environ["JIRA_CONFIG_JSON"]
-
-    reset_config_state()
 
 
 class TestLoadConfigs:
@@ -274,10 +257,15 @@ class TestJiraConfig:
         assert "s3cret" not in repr(config)
         assert "s3cret" not in str(config)
 
-    def test_is_immutable(self):
+    @pytest.mark.parametrize("field", ["id", "url", "email", "token", "timeout"])
+    def test_is_immutable(self, field):
         config = JiraConfig(
             id="a", url="https://a.atlassian.net", email="e", token="s3cret"
         )
 
-        with pytest.raises(AttributeError):
-            config.token = "other"  # type: ignore[misc]
+        with pytest.raises(FrozenInstanceError):
+            setattr(config, field, "other")
+
+        assert config == JiraConfig(
+            id="a", url="https://a.atlassian.net", email="e", token="s3cret"
+        )

@@ -1,11 +1,9 @@
 """Tests for update_issue and delete_issue tool validation and config selection."""
 
-import json
 from unittest.mock import AsyncMock
 
 import pytest
 
-from simple_jira_mcp.config import load_configs, reset_config_state
 from simple_jira_mcp.jira import client as jira_client
 from simple_jira_mcp.jira.client import JiraClient, UpdateIssueParams
 from simple_jira_mcp.tools import edit
@@ -16,34 +14,11 @@ TOOL_ARGUMENTS = [
 ]
 
 
-@pytest.fixture(autouse=True)
-def clean_config():
-    reset_config_state()
-    yield
-    reset_config_state()
+pytestmark = pytest.mark.usefixtures("clean_config")
 
 
 @pytest.fixture
-def mock_config(monkeypatch):
-    monkeypatch.setenv(
-        "JIRA_CONFIG_JSON",
-        json.dumps(
-            [
-                {
-                    "id": config_id,
-                    "url": f"https://{config_id}.atlassian.net",
-                    "email": "user@example.com",
-                    "token": "test-token",
-                }
-                for config_id in ("default", "second")
-            ]
-        ),
-    )
-    return load_configs()
-
-
-@pytest.fixture
-def client_method(mock_config, monkeypatch):
+def client_method(two_configs, monkeypatch):
     """Replace one JiraClient method with a mock and record the configs used."""
 
     def _apply(name):
@@ -65,7 +40,7 @@ def client_method(mock_config, monkeypatch):
 
 @pytest.mark.parametrize("tool_name,kwargs", TOOL_ARGUMENTS)
 @pytest.mark.parametrize("issue_key", ["", "   ", "invalid", "ONE-1/comment"])
-async def test_issue_key_validation(mock_config, tool_name, kwargs, issue_key):
+async def test_issue_key_validation(two_configs, tool_name, kwargs, issue_key):
     result = await getattr(edit, tool_name)(issue_key, **kwargs)
 
     assert result["isError"] is True
@@ -81,7 +56,7 @@ async def test_missing_config(tool_name, kwargs):
 
 
 @pytest.mark.parametrize("tool_name,kwargs", TOOL_ARGUMENTS)
-async def test_unknown_config(mock_config, tool_name, kwargs):
+async def test_unknown_config(two_configs, tool_name, kwargs):
     result = await getattr(edit, tool_name)("ONE-123", config_id="unknown", **kwargs)
 
     assert result["error"]["code"] == "CONFIG_NOT_FOUND"
@@ -89,16 +64,18 @@ async def test_unknown_config(mock_config, tool_name, kwargs):
 
 
 @pytest.mark.parametrize("tool_name,kwargs", TOOL_ARGUMENTS)
-@pytest.mark.parametrize("config_id", [None, "second"])
+@pytest.mark.parametrize(
+    "config_id,used_config", [(None, "default"), ("second", "second")]
+)
 async def test_config_and_key_normalization(
-    client_method, tool_name, kwargs, config_id
+    client_method, tool_name, kwargs, config_id, used_config
 ):
     method = client_method(tool_name)
 
     result = await getattr(edit, tool_name)(" one-123 ", config_id=config_id, **kwargs)
 
     assert result == {"success": True}
-    assert method.configs[0].id == (config_id or "default")
+    assert [config.id for config in method.configs] == [used_config]
     assert method.await_args.args[0] == "ONE-123"
 
 
@@ -148,7 +125,7 @@ async def test_update_issue_validation(client_method, kwargs, message):
     method.assert_not_awaited()
 
 
-async def test_update_issue_without_changes(mock_config):
+async def test_update_issue_without_changes(two_configs):
     result = await edit.update_issue("ONE-123")
 
     assert result["error"] == {

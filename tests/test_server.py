@@ -9,7 +9,6 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 from simple_jira_mcp import app, server, write_tools
 from simple_jira_mcp.config import reset_config_state
-from simple_jira_mcp.utils.validation import ALLOWED_SEARCH_FIELDS
 from tests.server_cases import CALLS, DESTRUCTIVE_TOOLS, READ_ONLY_TOOLS, SCHEMAS
 
 
@@ -42,7 +41,22 @@ async def test_search_schema_constraints():
     assert properties["limit"]["minimum"] == 1
     assert properties["limit"]["maximum"] == 100
     field_enum = properties["fields"]["anyOf"][0]["items"]["enum"]
-    assert set(field_enum) == ALLOWED_SEARCH_FIELDS
+    assert sorted(field_enum) == [
+        "assignee",
+        "attachment",
+        "comment",
+        "created",
+        "description",
+        "issuetype",
+        "labels",
+        "priority",
+        "project",
+        "reporter",
+        "resolution",
+        "status",
+        "summary",
+        "updated",
+    ]
 
 
 @pytest.mark.parametrize(

@@ -5,8 +5,6 @@ import json
 import httpx
 import pytest
 
-from simple_jira_mcp.jira.adf import adf_to_text, text_to_adf
-
 
 async def test_get_transitions(client, patch_async_client, workflow_transitions):
     requests = []
@@ -75,8 +73,38 @@ async def test_transition_payload_and_result(
     assert all(request.headers.get("authorization") for request in requests)
     assert json.loads(requests[1].content) == {
         "transition": {"id": "31"},
-        "fields": {"resolution": {"name": "Fixed"}, **fields},
-        "update": {"comment": [{"add": {"body": text_to_adf(comment)}}]},
+        "fields": {"resolution": {"name": "Fixed"}, "customfield_10001": "Completed"},
+        "update": {
+            "comment": [
+                {
+                    "add": {
+                        "body": {
+                            "type": "doc",
+                            "version": 1,
+                            "content": [
+                                {
+                                    "type": "paragraph",
+                                    "content": [
+                                        {
+                                            "type": "text",
+                                            "text": "Completed on 2026-09-30.",
+                                        },
+                                        {"type": "hardBreak"},
+                                        {"type": "text", "text": "Verified today."},
+                                    ],
+                                },
+                                {
+                                    "type": "paragraph",
+                                    "content": [
+                                        {"type": "text", "text": "Ready for release."}
+                                    ],
+                                },
+                            ],
+                        }
+                    }
+                }
+            ]
+        },
     }
     assert fields == {"customfield_10001": "Completed"}
     assert result == {
@@ -143,7 +171,15 @@ async def test_transition_without_comment_field_posts_comment_separately(
         ("GET", "/rest/api/3/issue/ONE-123"),
     ]
     assert json.loads(requests[1].content) == {"transition": {"id": "11"}}
-    assert json.loads(requests[2].content) == {"body": text_to_adf("Started")}
+    assert json.loads(requests[2].content) == {
+        "body": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "Started"}]}
+            ],
+        }
+    }
     assert result["status"] == "In Progress"
 
 
@@ -252,7 +288,24 @@ async def test_add_comment(client, patch_async_client):
     assert requests[0].method == "POST"
     assert requests[0].url.path == "/rest/api/3/issue/ONE-123/comment"
     assert requests[0].headers["authorization"].startswith("Basic ")
-    payload = json.loads(requests[0].content)
-    assert payload == {"body": text_to_adf(body)}
-    assert adf_to_text(payload["body"]) == body
+    assert json.loads(requests[0].content) == {
+        "body": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+                {
+                    "type": "paragraph",
+                    "content": [
+                        {"type": "text", "text": "First line"},
+                        {"type": "hardBreak"},
+                        {"type": "text", "text": "Second line"},
+                    ],
+                },
+                {
+                    "type": "paragraph",
+                    "content": [{"type": "text", "text": "Another paragraph"}],
+                },
+            ],
+        }
+    }
     assert result == {"id": "10001", "created": created}

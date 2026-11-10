@@ -6,9 +6,7 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from simple_jira_mcp.config import load_configs, reset_config_state
 from simple_jira_mcp.jira import client as jira_client
-from simple_jira_mcp.jira.adf import text_to_adf
 from simple_jira_mcp.jira.client import JiraClient
 from simple_jira_mcp.tools import workflow
 
@@ -19,30 +17,7 @@ TOOL_ARGUMENTS = [
 ]
 
 
-@pytest.fixture(autouse=True)
-def clean_config():
-    reset_config_state()
-    yield
-    reset_config_state()
-
-
-@pytest.fixture
-def mock_config(monkeypatch):
-    monkeypatch.setenv(
-        "JIRA_CONFIG_JSON",
-        json.dumps(
-            [
-                {
-                    "id": config_id,
-                    "url": f"https://{config_id}.atlassian.net",
-                    "email": "user@example.com",
-                    "token": "test-token",
-                }
-                for config_id in ("default", "second")
-            ]
-        ),
-    )
-    return load_configs()
+pytestmark = pytest.mark.usefixtures("clean_config")
 
 
 @pytest.mark.parametrize("tool_name,kwargs", TOOL_ARGUMENTS)
@@ -63,7 +38,7 @@ async def test_missing_config(tool_name, kwargs):
 
 
 @pytest.mark.parametrize("tool_name,kwargs", TOOL_ARGUMENTS)
-async def test_unknown_config(mock_config, tool_name, kwargs):
+async def test_unknown_config(two_configs, tool_name, kwargs):
     result = await getattr(workflow, tool_name)(
         "ONE-123", config_id="unknown", **kwargs
     )
@@ -73,9 +48,11 @@ async def test_unknown_config(mock_config, tool_name, kwargs):
 
 
 @pytest.mark.parametrize("tool_name,kwargs", TOOL_ARGUMENTS)
-@pytest.mark.parametrize("config_id", [None, "second"])
+@pytest.mark.parametrize(
+    "config_id,used_config", [(None, "default"), ("second", "second")]
+)
 async def test_config_and_key_normalization(
-    mock_config, monkeypatch, tool_name, kwargs, config_id
+    two_configs, monkeypatch, tool_name, kwargs, config_id, used_config
 ):
     method = AsyncMock(return_value={"success": True})
     constructor = []
@@ -93,7 +70,7 @@ async def test_config_and_key_normalization(
     )
 
     assert result == {"success": True}
-    assert constructor[0].id == (config_id or "default")
+    assert [config.id for config in constructor] == [used_config]
     assert method.await_args.args[0] == "ONE-123"
 
 
@@ -108,7 +85,7 @@ async def test_config_and_key_normalization(
         ({"resolution": "  "}, "Resolution must not be empty"),
     ],
 )
-async def test_transition_input_validation(mock_config, monkeypatch, kwargs, message):
+async def test_transition_input_validation(two_configs, monkeypatch, kwargs, message):
     method = AsyncMock()
     monkeypatch.setattr(JiraClient, "transition_issue", method)
     result = await workflow.transition_issue(
@@ -121,7 +98,7 @@ async def test_transition_input_validation(mock_config, monkeypatch, kwargs, mes
 
 
 @pytest.mark.parametrize("body", ["", "   ", "\n\n"])
-async def test_comment_body_required(mock_config, monkeypatch, body):
+async def test_comment_body_required(two_configs, monkeypatch, body):
     method = AsyncMock()
     monkeypatch.setattr(JiraClient, "add_comment", method)
     result = await workflow.add_comment("ONE-123", body)
@@ -130,7 +107,7 @@ async def test_comment_body_required(mock_config, monkeypatch, body):
     method.assert_not_awaited()
 
 
-async def test_transition_forwards_options(mock_config, monkeypatch):
+async def test_transition_forwards_options(two_configs, monkeypatch):
     response = {"key": "ONE-123", "status": "Done", "resolution": "Fixed"}
     method = AsyncMock(return_value=response)
     monkeypatch.setattr(JiraClient, "transition_issue", method)
@@ -149,7 +126,7 @@ async def test_transition_forwards_options(mock_config, monkeypatch):
 
 
 @pytest.mark.parametrize("tool_name,kwargs", TOOL_ARGUMENTS)
-async def test_runtime_error_forwarded(mock_config, monkeypatch, tool_name, kwargs):
+async def test_runtime_error_forwarded(two_configs, monkeypatch, tool_name, kwargs):
     error = {
         "isError": True,
         "error": {"code": "AUTH_FAILED", "message": "Invalid credentials"},
@@ -159,22 +136,25 @@ async def test_runtime_error_forwarded(mock_config, monkeypatch, tool_name, kwar
     assert await getattr(workflow, tool_name)("ONE-123", **kwargs) == error
 
 
-async def test_comment_tool_integration(mock_config, monkeypatch):
+async def test_comment_tool_integration(two_configs, patch_async_client):
     requests = []
-    real_async_client = httpx.AsyncClient
 
     def handler(request):
         requests.append(request)
         return httpx.Response(201, json={"id": "123", "created": "2026-10-01"})
 
-    transport = httpx.MockTransport(handler)
-    monkeypatch.setattr(
-        "simple_jira_mcp.jira.base.httpx.AsyncClient",
-        lambda **kwargs: real_async_client(transport=transport, **kwargs),
-    )
+    patch_async_client(httpx.MockTransport(handler))
     result = await workflow.add_comment(" one-123 ", "Body", config_id="second")
 
     assert requests[0].url.host == "second.atlassian.net"
     assert requests[0].url.path == "/rest/api/3/issue/ONE-123/comment"
-    assert json.loads(requests[0].content) == {"body": text_to_adf("Body")}
+    assert json.loads(requests[0].content) == {
+        "body": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "Body"}]}
+            ],
+        }
+    }
     assert result == {"id": "123", "created": "2026-10-01"}

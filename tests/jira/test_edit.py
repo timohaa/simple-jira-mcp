@@ -5,7 +5,6 @@ import json
 import httpx
 import pytest
 
-from simple_jira_mcp.jira.adf import text_to_adf
 from simple_jira_mcp.jira.client import UpdateIssueParams
 
 
@@ -40,7 +39,20 @@ async def test_update_issue_payload_and_result(client, requests):
     assert json.loads(requests[0].content) == {
         "fields": {
             "summary": "New title",
-            "description": text_to_adf("First.\n\nSecond."),
+            "description": {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": "First."}],
+                    },
+                    {
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": "Second."}],
+                    },
+                ],
+            },
             "priority": {"name": "High"},
             "labels": [],
             "assignee": {"accountId": "acc-1"},

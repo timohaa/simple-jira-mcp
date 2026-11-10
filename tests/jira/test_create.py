@@ -1,20 +1,14 @@
 """Tests for JiraClient create_issue operations."""
 
 import json
+from dataclasses import replace
 
 import httpx
 import pytest
 
 from simple_jira_mcp.jira.create import CreateIssueParams
 
-
-def _params(
-    project_key: str = "ONE",
-    summary: str = "Summary",
-    **kwargs: object,
-) -> CreateIssueParams:
-    """Build CreateIssueParams with test defaults."""
-    return CreateIssueParams(project_key=project_key, summary=summary, **kwargs)  # type: ignore[arg-type]
+PARAMS = CreateIssueParams(project_key="ONE", summary="Summary")
 
 
 @pytest.mark.asyncio
@@ -33,9 +27,9 @@ async def test_create_issue_builds_payload(client, patch_async_client):
     patch_async_client(transport)
 
     result = await client.create_issue(
-        _params(
-            "ONE",
-            "New issue",
+        CreateIssueParams(
+            project_key="ONE",
+            summary="New issue",
             issue_type="Bug",
             description="Line 1\nLine 2",
             priority="High",
@@ -69,7 +63,7 @@ async def test_create_issue_project_not_found_error(client, patch_async_client):
     transport = httpx.MockTransport(handler)
     patch_async_client(transport)
 
-    result = await client.create_issue(_params("MISSING"))
+    result = await client.create_issue(replace(PARAMS, project_key="MISSING"))
 
     assert result["isError"] is True
     assert result["error"]["code"] == "PROJECT_NOT_FOUND"
@@ -85,7 +79,7 @@ async def test_create_issue_auth_failed_error(client, patch_async_client):
     transport = httpx.MockTransport(handler)
     patch_async_client(transport)
 
-    result = await client.create_issue(_params())
+    result = await client.create_issue(PARAMS)
 
     assert result["isError"] is True
     assert result["error"]["code"] == "AUTH_FAILED"
@@ -101,7 +95,7 @@ async def test_create_issue_rate_limited_error(client, patch_async_client):
     transport = httpx.MockTransport(handler)
     patch_async_client(transport)
 
-    result = await client.create_issue(_params())
+    result = await client.create_issue(PARAMS)
 
     assert result["isError"] is True
     assert result["error"]["code"] == "RATE_LIMITED"
@@ -117,7 +111,7 @@ async def test_create_issue_invalid_issue_type_error(client, patch_async_client)
     transport = httpx.MockTransport(handler)
     patch_async_client(transport)
 
-    result = await client.create_issue(_params())
+    result = await client.create_issue(PARAMS)
 
     assert result["isError"] is True
     assert result["error"]["code"] == "INVALID_ISSUE_TYPE"
@@ -182,7 +176,8 @@ async def test_create_issue_unknown_priority(
         return issue_types if request.url.path == TYPES_PATH else type_fields
 
     patch_async_client(httpx.MockTransport(handler))
-    result = await client.create_issue(_params(priority="Urgent", issue_type="bug"))
+    params = replace(PARAMS, priority="Urgent", issue_type="bug")
+    result = await client.create_issue(params)
 
     assert lookups == paths
     assert result["error"] == {"code": "INVALID_PRIORITY", "message": message}
@@ -198,7 +193,7 @@ async def test_create_issue_priority_error_without_priority(client, patch_async_
         return httpx.Response(400, json={"errors": errors})
 
     patch_async_client(httpx.MockTransport(handler))
-    result = await client.create_issue(_params())
+    result = await client.create_issue(PARAMS)
 
     assert len(requests) == 1
     assert result["error"] == {
@@ -217,7 +212,7 @@ async def test_create_issue_with_errors_field(client, patch_async_client):
     transport = httpx.MockTransport(handler)
     patch_async_client(transport)
 
-    result = await client.create_issue(_params())
+    result = await client.create_issue(PARAMS)
 
     assert result["isError"] is True
     assert result["error"]["code"] == "VALIDATION_ERROR"
@@ -233,7 +228,7 @@ async def test_create_issue_with_error_messages(client, patch_async_client):
     transport = httpx.MockTransport(handler)
     patch_async_client(transport)
 
-    result = await client.create_issue(_params())
+    result = await client.create_issue(PARAMS)
 
     assert result["isError"] is True
     assert result["error"]["code"] == "VALIDATION_ERROR"
@@ -249,7 +244,7 @@ async def test_create_issue_with_empty_error_response(client, patch_async_client
     transport = httpx.MockTransport(handler)
     patch_async_client(transport)
 
-    result = await client.create_issue(_params())
+    result = await client.create_issue(PARAMS)
 
     assert result["isError"] is True
     assert result["error"]["code"] == "JIRA_ERROR"
@@ -265,7 +260,7 @@ async def test_create_issue_non_json_error_response(client, patch_async_client):
     transport = httpx.MockTransport(handler)
     patch_async_client(transport)
 
-    result = await client.create_issue(_params())
+    result = await client.create_issue(PARAMS)
 
     assert result["isError"] is True
     assert result["error"]["code"] == "JIRA_ERROR"
@@ -281,7 +276,7 @@ async def test_create_issue_request_error(client, patch_async_client):
     transport = httpx.MockTransport(handler)
     patch_async_client(transport)
 
-    result = await client.create_issue(_params())
+    result = await client.create_issue(PARAMS)
 
     assert result["isError"] is True
     assert result["error"]["code"] == "JIRA_ERROR"

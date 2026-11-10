@@ -1,59 +1,11 @@
 """Tests for search_issues tool with mocked Jira API."""
 
 import json
-import os
-from functools import partial
 
 import httpx
 import pytest
 
-import simple_jira_mcp.config
-from simple_jira_mcp.config import reset_config_state
 from simple_jira_mcp.tools.search import search_issues
-from simple_jira_mcp.utils.validation import BOUNDING_KEYWORDS
-
-
-@pytest.fixture
-def clean_config():
-    """Reset config state before and after each test."""
-    original = os.environ.get("JIRA_CONFIG_JSON")
-
-    reset_config_state()
-
-    yield
-
-    if original:
-        os.environ["JIRA_CONFIG_JSON"] = original
-    elif "JIRA_CONFIG_JSON" in os.environ:
-        del os.environ["JIRA_CONFIG_JSON"]
-
-    reset_config_state()
-
-
-@pytest.fixture
-def mock_config(clean_config):
-    """Set up a test config."""
-    config_data = [
-        {
-            "id": "test",
-            "url": "https://test.atlassian.net",
-            "email": "test@example.com",
-            "token": "test-token",
-        }
-    ]
-    os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-    simple_jira_mcp.config.load_configs()
-
-
-@pytest.fixture
-def patch_httpx_client(monkeypatch):
-    """Patch httpx.AsyncClient in Jira modules to use a mock transport."""
-
-    def _apply(transport: httpx.MockTransport) -> None:
-        async_client = partial(httpx.AsyncClient, transport=transport)
-        monkeypatch.setattr("simple_jira_mcp.jira.base.httpx.AsyncClient", async_client)
-
-    return _apply
 
 
 class TestSearchValidation:
@@ -79,7 +31,10 @@ class TestSearchValidation:
         assert result["error"]["code"] == "UNBOUNDED_QUERY"
         # The message must name the accepted bounding clauses.
         message = result["error"]["message"]
-        assert all(keyword in message for keyword in BOUNDING_KEYWORDS)
+        assert (
+            "assignee, created, id, issuetype, key, priority, project, "
+            "reporter, resolved, status, type, updated"
+        ) in message
 
     @pytest.mark.asyncio
     async def test_jql_with_disallowed_characters_returns_error(self, mock_config):
@@ -126,7 +81,7 @@ class TestSearchValidation:
 
 class TestSearchIntegration:
     @pytest.mark.asyncio
-    async def test_search_integration_success(self, mock_config, patch_httpx_client):
+    async def test_search_integration_success(self, mock_config, patch_async_client):
         async def handler(request: httpx.Request) -> httpx.Response:
             payload = json.loads(request.content.decode())
             assert payload["jql"] == "project = ONE"
@@ -155,7 +110,7 @@ class TestSearchIntegration:
             )
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         result = await search_issues("project = ONE")
 
@@ -166,7 +121,7 @@ class TestSearchIntegration:
 
     @pytest.mark.asyncio
     async def test_search_integration_with_custom_params(
-        self, mock_config, patch_httpx_client
+        self, mock_config, patch_async_client
     ):
         async def handler(request: httpx.Request) -> httpx.Response:
             payload = json.loads(request.content.decode())
@@ -177,7 +132,7 @@ class TestSearchIntegration:
             return httpx.Response(200, json=response_data)
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         result = await search_issues(
             "project = ONE",
@@ -191,13 +146,13 @@ class TestSearchIntegration:
 
     @pytest.mark.asyncio
     async def test_search_integration_auth_failed(
-        self, mock_config, patch_httpx_client
+        self, mock_config, patch_async_client
     ):
         async def handler(_: httpx.Request) -> httpx.Response:
             return httpx.Response(401)
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         result = await search_issues("project = ONE")
 
@@ -206,13 +161,13 @@ class TestSearchIntegration:
 
     @pytest.mark.asyncio
     async def test_search_integration_invalid_jql(
-        self, mock_config, patch_httpx_client
+        self, mock_config, patch_async_client
     ):
         async def handler(_: httpx.Request) -> httpx.Response:
             return httpx.Response(400, json={"errorMessages": ["Invalid query"]})
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         result = await search_issues("project = ONE")
 
@@ -221,13 +176,13 @@ class TestSearchIntegration:
 
     @pytest.mark.asyncio
     async def test_search_integration_rate_limited(
-        self, mock_config, patch_httpx_client
+        self, mock_config, patch_async_client
     ):
         async def handler(_: httpx.Request) -> httpx.Response:
             return httpx.Response(429)
 
         transport = httpx.MockTransport(handler)
-        patch_httpx_client(transport)
+        patch_async_client(transport)
 
         result = await search_issues("project = ONE")
 

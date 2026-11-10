@@ -1,6 +1,6 @@
 """Tests for pooled Jira clients and shared HTTP sessions."""
 
-import json
+from dataclasses import replace
 
 import httpx
 import pytest
@@ -12,26 +12,26 @@ from simple_jira_mcp.utils.errors import is_error
 
 
 @pytest.fixture
-def configs(monkeypatch):
-    monkeypatch.setenv(
-        "JIRA_CONFIG_JSON",
-        json.dumps(
-            [
-                {
-                    "id": config_id,
-                    "url": f"https://{config_id}.atlassian.net",
-                    "email": "user@example.com",
-                    "token": "test-token",
-                }
-                for config_id in ("default", "second")
-            ]
-        ),
-    )
-    reset_config_state()
+def configs(two_configs):
     jira_client._clients.clear()
-    yield load_configs()
-    reset_config_state()
+    yield two_configs
     jira_client._clients.clear()
+
+
+def test_http_client_uses_default_timeout(client):
+    timeout = client._session.client.timeout
+
+    assert timeout.connect == 30.0
+    assert timeout.read == 30.0
+
+
+def test_http_client_uses_config_timeout(client):
+    timeout = JiraClient(replace(client.config, timeout=5.0))._session.client.timeout
+
+    assert timeout.connect == 5.0
+    assert timeout.read == 5.0
+    assert timeout.write == 5.0
+    assert timeout.pool == 5.0
 
 
 def test_get_client_reuses_client_per_config(configs):

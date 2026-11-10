@@ -1,48 +1,12 @@
 """Tests for download_attachment tool with mocked Jira API."""
 
-import json
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import simple_jira_mcp.config
-from simple_jira_mcp.config import reset_config_state
 from simple_jira_mcp.tools.attachment import download_attachment
-
-
-@pytest.fixture
-def clean_config():
-    """Reset config state before and after each test."""
-    original = os.environ.get("JIRA_CONFIG_JSON")
-
-    reset_config_state()
-
-    yield
-
-    if original:
-        os.environ["JIRA_CONFIG_JSON"] = original
-    elif "JIRA_CONFIG_JSON" in os.environ:
-        del os.environ["JIRA_CONFIG_JSON"]
-
-    reset_config_state()
-
-
-@pytest.fixture
-def mock_config(clean_config):
-    """Set up a test config."""
-    config_data = [
-        {
-            "id": "test",
-            "url": "https://test.atlassian.net",
-            "email": "test@example.com",
-            "token": "test-token",
-        }
-    ]
-    os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-    simple_jira_mcp.config.load_configs()
 
 
 @pytest.fixture
