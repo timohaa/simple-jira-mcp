@@ -333,7 +333,8 @@ Example inputs:
 - `list_sprints` needs `project_key` or `board_id`. `sprint_id` and `board_id`
   must be positive. `state` accepts only `active`, `future`, and `closed`,
   case-insensitive.
-- `move_issues_to_sprint` needs at least one valid `issue_key`.
+- `move_issues_to_sprint` needs at least one key in `issue_keys`. Every key
+  must match the `issue_key` pattern, or the call returns `VALIDATION_ERROR`.
 - `transition` and comment `body` must not be empty or whitespace-only.
   Optional transition `comment` and `resolution` must also be non-empty when
   supplied.

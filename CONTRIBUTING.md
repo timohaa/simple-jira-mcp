@@ -13,7 +13,7 @@ Run the checks before submitting changes:
 ```
 
 This runs Ruff (linting), Mypy (type checking), and Pytest (tests). GitHub
-Actions runs the same script on every push and pull request.
+Actions runs the same script on every push to `main` and every pull request.
 
 ## Guidelines
 
