@@ -21,8 +21,10 @@ apply here.
 - Scrub a recording before committing it. Remove tokens, cookies, email
   addresses, account IDs and customer text. Replace the site URL with
   `https://example.atlassian.net`.
-- Recording is a manual step outside the test run. Ask the user before
-  calling a live Jira, and use read-only requests.
+- Recording is a manual step outside the test run, done with
+  `python -m tests.fixtures.record --project <KEY>`. It creates and deletes
+  its own labelled issues, so run it only against a sandbox project. Ask the
+  user before calling a live Jira.
 - If a test needs a response that has no recording and you cannot make one,
   stop and ask. Do not invent the response.
 - Most existing tests predate this rule and build responses by hand. Do not
@@ -47,6 +49,9 @@ apply here.
 - `tests/conftest.py` holds `clean_config`, `mock_config` (one config),
   `two_configs` and `patch_async_client`. Use them; do not redefine them in
   a test module.
+- `tests/jira/conftest.py` holds `client` (a `JiraClient` for
+  `https://example.atlassian.net`) and `workflow_transitions` for the Jira
+  client tests.
 
 ## Skips and flakes
 
