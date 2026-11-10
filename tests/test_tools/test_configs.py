@@ -9,42 +9,6 @@ import simple_jira_mcp.config
 from simple_jira_mcp.tools.configs import list_configs
 
 
-@pytest.fixture
-def single_config(clean_config):
-    """Set up a single config."""
-    config_data = [
-        {
-            "id": "work",
-            "url": "https://work.atlassian.net",
-            "email": "work@example.com",
-            "token": "work-token",
-        }
-    ]
-    os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-    simple_jira_mcp.config.load_configs()
-
-
-@pytest.fixture
-def multi_config(clean_config):
-    """Set up multiple configs."""
-    config_data = [
-        {
-            "id": "work",
-            "url": "https://work.atlassian.net",
-            "email": "work@example.com",
-            "token": "work-token",
-        },
-        {
-            "id": "personal",
-            "url": "https://personal.atlassian.net",
-            "email": "personal@example.com",
-            "token": "personal-token",
-        },
-    ]
-    os.environ["JIRA_CONFIG_JSON"] = json.dumps(config_data)
-    simple_jira_mcp.config.load_configs()
-
-
 class TestListConfigs:
     @pytest.mark.asyncio
     async def test_returns_empty_when_no_configs(self, clean_config):
@@ -61,12 +25,12 @@ class TestListConfigs:
         assert "error" not in result
 
     @pytest.mark.asyncio
-    async def test_returns_single_config(self, single_config):
+    async def test_returns_single_config(self, mock_config):
         result = await list_configs()
 
         assert len(result["configs"]) == 1
-        assert result["configs"][0]["id"] == "work"
-        assert result["configs"][0]["url"] == "https://work.atlassian.net"
+        assert result["configs"][0]["id"] == "test"
+        assert result["configs"][0]["url"] == "https://test.atlassian.net"
         assert result["configs"][0]["default"] is True
         assert result["configs"][0]["timeout"] == 30.0
 
@@ -89,17 +53,17 @@ class TestListConfigs:
         assert result["configs"][0]["timeout"] == 120.0
 
     @pytest.mark.asyncio
-    async def test_returns_multiple_configs(self, multi_config):
+    async def test_returns_multiple_configs(self, two_configs):
         result = await list_configs()
 
         assert len(result["configs"]) == 2
-        assert result["configs"][0]["id"] == "work"
+        assert result["configs"][0]["id"] == "default"
         assert result["configs"][0]["default"] is True
-        assert result["configs"][1]["id"] == "personal"
+        assert result["configs"][1]["id"] == "second"
         assert result["configs"][1]["default"] is False
 
     @pytest.mark.asyncio
-    async def test_does_not_expose_credentials(self, single_config):
+    async def test_does_not_expose_credentials(self, mock_config):
         result = await list_configs()
 
         config = result["configs"][0]
