@@ -32,7 +32,8 @@ Keep server diagnostics on stderr; stdout carries MCP messages. See `AGENTS.md`.
 
 - Write tests for new functionality
 - Maintain existing test coverage
-- Use mocks for Jira API calls
+- Test against recorded Jira responses stored in the repo, never a live
+  Jira. See `docs/agents/testing.md`
 
 ### Commits
 
