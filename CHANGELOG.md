@@ -9,6 +9,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-11
+
 ### Added
 
 - `list_sprints` lists sprints of a board or of all boards in a project
