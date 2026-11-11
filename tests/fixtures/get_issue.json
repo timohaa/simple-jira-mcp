@@ -1,0 +1,281 @@
+[
+  {
+    "request": {
+      "body": null,
+      "method": "GET",
+      "url": "https://example.atlassian.net/rest/api/3/issue/ONE-1"
+    },
+    "response": {
+      "body": {
+        "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+        "fields": {
+          "aggregateprogress": {
+            "progress": 0,
+            "total": 0
+          },
+          "aggregatetimeestimate": null,
+          "aggregatetimeoriginalestimate": null,
+          "aggregatetimespent": null,
+          "assignee": null,
+          "attachment": [
+            {
+              "author": {
+                "accountId": "account-1",
+                "accountType": "atlassian",
+                "active": true,
+                "displayName": "User 1",
+                "self": "https://example.atlassian.net/rest/api/3/user?accountId=account-1"
+              },
+              "content": "https://example.atlassian.net/rest/api/3/attachment/content/10007",
+              "created": "2026-11-11T12:22:14.384+0200",
+              "filename": "notes.txt",
+              "id": "10007",
+              "mimeType": "text/plain",
+              "self": "https://example.atlassian.net/rest/api/3/attachment/10007",
+              "size": 20
+            }
+          ],
+          "comment": {
+            "comments": [
+              {
+                "author": {
+                  "accountId": "account-1",
+                  "accountType": "atlassian",
+                  "active": true,
+                  "displayName": "User 1",
+                  "self": "https://example.atlassian.net/rest/api/3/user?accountId=account-1"
+                },
+                "body": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "First line",
+                          "type": "text"
+                        },
+                        {
+                          "type": "hardBreak"
+                        },
+                        {
+                          "text": "Second line",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc",
+                  "version": 1
+                },
+                "created": "2026-11-11T12:22:10.760+0200",
+                "id": "10012",
+                "jsdPublic": true,
+                "self": "https://example.atlassian.net/rest/api/3/issue/10025/comment/10012",
+                "updateAuthor": {
+                  "accountId": "account-1",
+                  "accountType": "atlassian",
+                  "active": true,
+                  "displayName": "User 1",
+                  "self": "https://example.atlassian.net/rest/api/3/user?accountId=account-1"
+                },
+                "updated": "2026-11-11T12:22:10.760+0200"
+              },
+              {
+                "author": {
+                  "accountId": "account-1",
+                  "accountType": "atlassian",
+                  "active": true,
+                  "displayName": "User 1",
+                  "self": "https://example.atlassian.net/rest/api/3/user?accountId=account-1"
+                },
+                "body": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "Moved by recorder",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc",
+                  "version": 1
+                },
+                "created": "2026-11-11T12:22:13.343+0200",
+                "id": "10013",
+                "jsdPublic": true,
+                "self": "https://example.atlassian.net/rest/api/3/issue/10025/comment/10013",
+                "updateAuthor": {
+                  "accountId": "account-1",
+                  "accountType": "atlassian",
+                  "active": true,
+                  "displayName": "User 1",
+                  "self": "https://example.atlassian.net/rest/api/3/user?accountId=account-1"
+                },
+                "updated": "2026-11-11T12:22:13.343+0200"
+              }
+            ],
+            "maxResults": 2,
+            "self": "https://example.atlassian.net/rest/api/3/issue/10025/comment",
+            "startAt": 0,
+            "total": 2
+          },
+          "components": [],
+          "created": "2026-11-11T12:22:04.561+0200",
+          "creator": {
+            "accountId": "account-1",
+            "accountType": "atlassian",
+            "active": true,
+            "displayName": "User 1",
+            "self": "https://example.atlassian.net/rest/api/3/user?accountId=account-1"
+          },
+          "customfield_10000": "{}",
+          "customfield_10001": null,
+          "customfield_10015": null,
+          "customfield_10016": null,
+          "customfield_10017": null,
+          "customfield_10019": "0|i0000k:",
+          "customfield_10020": null,
+          "customfield_10021": null,
+          "customfield_10026": null,
+          "customfield_10035": null,
+          "customfield_10036": null,
+          "description": {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Line 1",
+                    "type": "text"
+                  },
+                  {
+                    "type": "hardBreak"
+                  },
+                  {
+                    "text": "Line 2",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "doc",
+            "version": 1
+          },
+          "duedate": null,
+          "environment": null,
+          "fixVersions": [],
+          "issuelinks": [],
+          "issuerestriction": {
+            "issuerestrictions": {},
+            "shouldDisplay": true
+          },
+          "issuetype": {
+            "avatarId": 10318,
+            "description": "",
+            "entityId": "7d242fca-181a-4cfb-b358-1c87540f7c41",
+            "hierarchyLevel": 0,
+            "iconUrl": "https://example.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium",
+            "id": "10010",
+            "name": "Task",
+            "self": "https://example.atlassian.net/rest/api/3/issuetype/10010",
+            "subtask": false
+          },
+          "labels": [
+            "mcp-fixture"
+          ],
+          "lastViewed": null,
+          "priority": {
+            "iconUrl": "https://example.atlassian.net/images/icons/priorities/medium_new.svg",
+            "id": "3",
+            "name": "Medium",
+            "self": "https://example.atlassian.net/rest/api/3/priority/3"
+          },
+          "progress": {
+            "progress": 0,
+            "total": 0
+          },
+          "project": {
+            "id": "10001",
+            "key": "ONE",
+            "name": "Project One",
+            "projectTypeKey": "software",
+            "self": "https://example.atlassian.net/rest/api/3/project/10001",
+            "simplified": true
+          },
+          "reporter": {
+            "accountId": "account-1",
+            "accountType": "atlassian",
+            "active": true,
+            "displayName": "User 1",
+            "self": "https://example.atlassian.net/rest/api/3/user?accountId=account-1"
+          },
+          "resolution": {
+            "description": "GreenHopper Managed Resolution",
+            "id": "10000",
+            "name": "Done",
+            "self": "https://example.atlassian.net/rest/api/3/resolution/10000"
+          },
+          "resolutiondate": "2026-11-11T12:22:12.835+0200",
+          "security": null,
+          "status": {
+            "description": "",
+            "iconUrl": "https://example.atlassian.net/images/icons/statuses/generic.png",
+            "id": "10005",
+            "name": "Done",
+            "self": "https://example.atlassian.net/rest/api/3/status/10005",
+            "statusCategory": {
+              "colorName": "green",
+              "id": 3,
+              "key": "done",
+              "name": "Done",
+              "self": "https://example.atlassian.net/rest/api/3/statuscategory/3"
+            }
+          },
+          "statusCategory": {
+            "colorName": "green",
+            "id": 3,
+            "key": "done",
+            "name": "Done",
+            "self": "https://example.atlassian.net/rest/api/3/statuscategory/3"
+          },
+          "statuscategorychangedate": "2026-11-11T12:22:12.857+0200",
+          "subtasks": [],
+          "summary": "Recorded issue, updated",
+          "timeestimate": null,
+          "timeoriginalestimate": null,
+          "timespent": null,
+          "timetracking": {},
+          "updated": "2026-11-11T12:22:14.763+0200",
+          "versions": [],
+          "votes": {
+            "hasVoted": false,
+            "self": "https://example.atlassian.net/rest/api/3/issue/ONE-1/votes",
+            "votes": 0
+          },
+          "watches": {
+            "isWatching": true,
+            "self": "https://example.atlassian.net/rest/api/3/issue/ONE-1/watchers",
+            "watchCount": 1
+          },
+          "worklog": {
+            "maxResults": 20,
+            "startAt": 0,
+            "total": 0,
+            "worklogs": []
+          },
+          "workratio": -1
+        },
+        "id": "10025",
+        "key": "ONE-1",
+        "self": "https://example.atlassian.net/rest/api/3/issue/10025"
+      },
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 200
+    }
+  }
+]

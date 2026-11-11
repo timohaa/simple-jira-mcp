@@ -1,0 +1,55 @@
+[
+  {
+    "request": {
+      "body": {
+        "fields": {
+          "description": {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Line 1",
+                    "type": "text"
+                  },
+                  {
+                    "type": "hardBreak"
+                  },
+                  {
+                    "text": "Line 2",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "doc",
+            "version": 1
+          },
+          "issuetype": {
+            "name": "Task"
+          },
+          "labels": [
+            "mcp-fixture"
+          ],
+          "project": {
+            "key": "ONE"
+          },
+          "summary": "Recorded issue"
+        }
+      },
+      "method": "POST",
+      "url": "https://example.atlassian.net/rest/api/3/issue"
+    },
+    "response": {
+      "body": {
+        "id": "10025",
+        "key": "ONE-1",
+        "self": "https://example.atlassian.net/rest/api/3/issue/10025"
+      },
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 201
+    }
+  }
+]

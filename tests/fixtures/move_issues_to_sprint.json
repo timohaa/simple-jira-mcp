@@ -1,0 +1,20 @@
+[
+  {
+    "request": {
+      "body": {
+        "issues": [
+          "ONE-1"
+        ]
+      },
+      "method": "POST",
+      "url": "https://example.atlassian.net/rest/agile/1.0/sprint/3/issue"
+    },
+    "response": {
+      "body": null,
+      "headers": {
+        "content-type": "text/html;charset=UTF-8"
+      },
+      "status": 204
+    }
+  }
+]

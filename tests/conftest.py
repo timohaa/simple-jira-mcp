@@ -3,11 +3,14 @@
 import json
 import os
 from functools import partial
+from pathlib import Path
 
 import httpx
 import pytest
 
 from simple_jira_mcp.config import load_configs, reset_config_state
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
@@ -67,3 +70,59 @@ def patch_async_client(monkeypatch):
         monkeypatch.setattr("simple_jira_mcp.jira.base.httpx.AsyncClient", async_client)
 
     return _apply
+
+
+class Replay:
+    """Answer requests with the recorded exchanges of one scenario, in order.
+
+    A request that differs from the recorded one in method, path or query
+    fails the test, as does a request beyond the end of the recording.
+    """
+
+    def __init__(self, exchanges, faults):
+        self._exchanges = exchanges
+        self._faults = faults
+        self.requests = []
+
+    def __call__(self, request):
+        index = len(self.requests)
+        self.requests.append(request)
+        assert index < len(self._exchanges), f"Unrecorded request: {request.url}"
+        recorded = self._exchanges[index]
+        expected_path = httpx.URL(recorded["request"]["url"]).raw_path
+        assert request.method == recorded["request"]["method"]
+        assert request.url.raw_path == expected_path
+        if index in self._faults:
+            return self._faults[index]
+        response = recorded["response"]
+        body = response["body"]
+        if body is None:
+            content = b""
+        elif isinstance(body, str):
+            content = body.encode()
+        else:
+            content = json.dumps(body).encode()
+        return httpx.Response(
+            response["status"], headers=response["headers"], content=content
+        )
+
+    def sent(self, index):
+        """Return the JSON body of the request at index."""
+        return json.loads(self.requests[index].content)
+
+
+@pytest.fixture
+def replay(patch_async_client):
+    """Replay `tests/fixtures/<name>.json`, a recording of a real Jira site.
+
+    `faults` maps a request index to a response returned in place of the
+    recorded one, for failures a live site cannot be made to produce.
+    """
+
+    def _start(name, faults=None):
+        exchanges = json.loads((FIXTURES / f"{name}.json").read_text())
+        player = Replay(exchanges, faults or {})
+        patch_async_client(httpx.MockTransport(player))
+        return player
+
+    return _start

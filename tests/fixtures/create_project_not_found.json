@@ -1,0 +1,33 @@
+[
+  {
+    "request": {
+      "body": {
+        "fields": {
+          "issuetype": {
+            "name": "Task"
+          },
+          "project": {
+            "key": "ZZNOPROJECT"
+          },
+          "summary": "Rejected"
+        }
+      },
+      "method": "POST",
+      "url": "https://example.atlassian.net/rest/api/3/issue"
+    },
+    "response": {
+      "body": {
+        "errorMessages": [
+          "The target project doesn't exist or you don't have permission to create issues in it."
+        ],
+        "errors": {
+          "project": "The target project doesn't exist or you don't have permission to create issues in it."
+        }
+      },
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 400
+    }
+  }
+]

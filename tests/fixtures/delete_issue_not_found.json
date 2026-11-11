@@ -1,0 +1,21 @@
+[
+  {
+    "request": {
+      "body": null,
+      "method": "DELETE",
+      "url": "https://example.atlassian.net/rest/api/3/issue/ONE-99999999?deleteSubtasks=false"
+    },
+    "response": {
+      "body": {
+        "errorMessages": [
+          "Issue does not exist or you do not have permission to see it."
+        ],
+        "errors": {}
+      },
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 404
+    }
+  }
+]

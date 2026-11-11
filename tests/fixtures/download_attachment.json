@@ -1,0 +1,31 @@
+[
+  {
+    "request": {
+      "body": null,
+      "method": "GET",
+      "url": "https://example.atlassian.net/rest/api/3/attachment/content/10007"
+    },
+    "response": {
+      "body": null,
+      "headers": {
+        "content-type": "text/html;charset=UTF-8",
+        "location": "https://media.example.net/file"
+      },
+      "status": 303
+    }
+  },
+  {
+    "request": {
+      "body": null,
+      "method": "GET",
+      "url": "https://media.example.net/file"
+    },
+    "response": {
+      "body": "recorded attachment\n",
+      "headers": {
+        "content-type": "text/plain"
+      },
+      "status": 200
+    }
+  }
+]

@@ -1,0 +1,23 @@
+[
+  {
+    "request": {
+      "body": {
+        "fields": {
+          "labels": [
+            "mcp-fixture"
+          ],
+          "summary": "Recorded issue, updated"
+        }
+      },
+      "method": "PUT",
+      "url": "https://example.atlassian.net/rest/api/3/issue/ONE-1"
+    },
+    "response": {
+      "body": null,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 204
+    }
+  }
+]

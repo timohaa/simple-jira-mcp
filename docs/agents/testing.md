@@ -15,24 +15,42 @@ apply here.
 ## Recorded data
 
 - Tests never call a live Jira. They replay responses stored in the repo.
-- Store each real Jira response as a JSON file under `tests/fixtures/`.
-  Replay it through `httpx.MockTransport`, using `patch_async_client` in
-  `tests/conftest.py`.
-- Scrub a recording before committing it. Remove tokens, cookies, email
-  addresses, account IDs and customer text. Replace the site URL with
-  `https://example.atlassian.net`.
-- Recording is a manual step outside the test run, done with
+- `tests/fixtures/<scenario>.json` holds the HTTP exchanges of one client
+  operation against a real Jira site. Replay one with the `replay` fixture:
+  `jira = replay("search")`. It fails the test if the client sends a request
+  the recording does not contain.
+- Add or refresh recordings with
   `python -m tests.fixtures.record --project <KEY> [--config-id <ID>]`. It
-  reads configs from `JIRA_CONFIG_JSON`. It creates and deletes its own
-  labelled issues, so run it only against a sandbox project. Ask the user
-  before calling a live Jira.
-- The recorder scrubs each file through `tests/fixtures/scrub.py`. Board,
-  sprint, status and priority names stay as recorded, so review every file
-  before committing it.
-- If a test needs a response that has no recording and you cannot make one,
-  stop and ask. Do not invent the response.
-- Most existing tests predate this rule and build responses by hand. Do not
-  copy that pattern into new tests.
+  reads configs from `JIRA_CONFIG_JSON` and uses the first one unless you
+  pass `--config-id`. It creates and deletes its own labelled issues, so run
+  it only against a sandbox project. Ask the user before calling a live Jira.
+- The recorder scrubs the site, project key, issue keys and user identities.
+  Board, sprint, status and priority names stay as recorded, so read every
+  new file before committing it. Re-recording changes IDs and timestamps, so
+  update the tests that assert on them.
+- Scrubbed recordings use fixed placeholders, so assert on these:
+  - Site: `https://example.atlassian.net`.
+  - Project key: `ONE`. The project name is `Project One`.
+  - Issue keys: `ONE-1`, `ONE-2` and so on, numbered in order of first
+    appearance across the run. Keys with more than six digits stay as
+    recorded.
+  - Email: `user@example.com`.
+  - Account IDs: `account-1`, `account-2` and so on.
+  - Display names: `User 1`, `User 2` and so on.
+  - Links to other hosts: `https://media.example.net/file`.
+  - Removed fields: `avatarUrls`, `emailAddress` and `timeZone`.
+- Record with the account language set to English, so names and error
+  messages come back in English.
+
+## What may stay hand-built
+
+- A failure the site cannot produce on demand: a bare status such as 401,
+  429 or 500, a malformed body, or a transport error. Pass it to `replay`
+  as a fault, or return it from a `httpx.MockTransport` handler.
+- A Jira feature the sandbox lacks, such as a transition screen. Say so in
+  the test's docstring.
+- Return values of our own `JiraClient` methods, mocked in tool tests.
+- Anything else needs a recording. If you cannot make one, stop and ask.
 
 ## A test that can fail
 

@@ -1,0 +1,82 @@
+[
+  {
+    "request": {
+      "body": {
+        "body": {
+          "content": [
+            {
+              "content": [
+                {
+                  "text": "First line",
+                  "type": "text"
+                },
+                {
+                  "type": "hardBreak"
+                },
+                {
+                  "text": "Second line",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "type": "doc",
+          "version": 1
+        }
+      },
+      "method": "POST",
+      "url": "https://example.atlassian.net/rest/api/3/issue/ONE-1/comment"
+    },
+    "response": {
+      "body": {
+        "author": {
+          "accountId": "account-1",
+          "accountType": "atlassian",
+          "active": true,
+          "displayName": "User 1",
+          "self": "https://example.atlassian.net/rest/api/3/user?accountId=account-1"
+        },
+        "body": {
+          "content": [
+            {
+              "content": [
+                {
+                  "text": "First line",
+                  "type": "text"
+                },
+                {
+                  "type": "hardBreak"
+                },
+                {
+                  "text": "Second line",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "type": "doc",
+          "version": 1
+        },
+        "created": "2026-11-11T12:22:10.760+0200",
+        "id": "10012",
+        "jsdPublic": true,
+        "self": "https://example.atlassian.net/rest/api/3/issue/10025/comment/10012",
+        "updateAuthor": {
+          "accountId": "account-1",
+          "accountType": "atlassian",
+          "active": true,
+          "displayName": "User 1",
+          "self": "https://example.atlassian.net/rest/api/3/user?accountId=account-1"
+        },
+        "updated": "2026-11-11T12:22:10.760+0200"
+      },
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "location": "https://example.atlassian.net/rest/api/3/issue/10025/comment/10012"
+      },
+      "status": 201
+    }
+  }
+]

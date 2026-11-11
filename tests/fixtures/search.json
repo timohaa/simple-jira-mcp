@@ -1,0 +1,171 @@
+[
+  {
+    "request": {
+      "body": {
+        "fields": [
+          "summary",
+          "status",
+          "assignee",
+          "priority",
+          "updated",
+          "created",
+          "labels",
+          "issuetype"
+        ],
+        "jql": "project = \"ONE\" AND labels = mcp-fixture ORDER BY key ASC",
+        "maxResults": 50
+      },
+      "method": "POST",
+      "url": "https://example.atlassian.net/rest/api/3/search/jql"
+    },
+    "response": {
+      "body": {
+        "isLast": true,
+        "issues": [
+          {
+            "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+            "fields": {
+              "assignee": null,
+              "created": "2026-11-11T12:22:04.561+0200",
+              "issuetype": {
+                "avatarId": 10318,
+                "description": "",
+                "entityId": "7d242fca-181a-4cfb-b358-1c87540f7c41",
+                "hierarchyLevel": 0,
+                "iconUrl": "https://example.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium",
+                "id": "10010",
+                "name": "Task",
+                "self": "https://example.atlassian.net/rest/api/3/issuetype/10010",
+                "subtask": false
+              },
+              "labels": [
+                "mcp-fixture"
+              ],
+              "priority": {
+                "iconUrl": "https://example.atlassian.net/images/icons/priorities/medium_new.svg",
+                "id": "3",
+                "name": "Medium",
+                "self": "https://example.atlassian.net/rest/api/3/priority/3"
+              },
+              "status": {
+                "description": "",
+                "iconUrl": "https://example.atlassian.net/images/icons/statuses/generic.png",
+                "id": "10005",
+                "name": "Done",
+                "self": "https://example.atlassian.net/rest/api/3/status/10005",
+                "statusCategory": {
+                  "colorName": "green",
+                  "id": 3,
+                  "key": "done",
+                  "name": "Done",
+                  "self": "https://example.atlassian.net/rest/api/3/statuscategory/3"
+                }
+              },
+              "summary": "Recorded issue, updated",
+              "updated": "2026-11-11T12:22:16.885+0200"
+            },
+            "id": "10025",
+            "key": "ONE-1",
+            "self": "https://example.atlassian.net/rest/api/3/issue/10025"
+          },
+          {
+            "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+            "fields": {
+              "assignee": null,
+              "created": "2026-11-11T12:22:05.415+0200",
+              "issuetype": {
+                "avatarId": 10318,
+                "description": "",
+                "entityId": "7d242fca-181a-4cfb-b358-1c87540f7c41",
+                "hierarchyLevel": 0,
+                "iconUrl": "https://example.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium",
+                "id": "10010",
+                "name": "Task",
+                "self": "https://example.atlassian.net/rest/api/3/issuetype/10010",
+                "subtask": false
+              },
+              "labels": [
+                "mcp-fixture"
+              ],
+              "priority": {
+                "iconUrl": "https://example.atlassian.net/images/icons/priorities/medium_new.svg",
+                "id": "3",
+                "name": "Medium",
+                "self": "https://example.atlassian.net/rest/api/3/priority/3"
+              },
+              "status": {
+                "description": "",
+                "iconUrl": "https://example.atlassian.net/images/icons/statuses/generic.png",
+                "id": "10003",
+                "name": "To Do",
+                "self": "https://example.atlassian.net/rest/api/3/status/10003",
+                "statusCategory": {
+                  "colorName": "blue-gray",
+                  "id": 2,
+                  "key": "new",
+                  "name": "To Do",
+                  "self": "https://example.atlassian.net/rest/api/3/statuscategory/2"
+                }
+              },
+              "summary": "Second recorded issue",
+              "updated": "2026-11-11T12:22:05.485+0200"
+            },
+            "id": "10026",
+            "key": "ONE-2",
+            "self": "https://example.atlassian.net/rest/api/3/issue/10026"
+          },
+          {
+            "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+            "fields": {
+              "assignee": null,
+              "created": "2026-11-11T12:22:06.226+0200",
+              "issuetype": {
+                "avatarId": 10318,
+                "description": "",
+                "entityId": "7d242fca-181a-4cfb-b358-1c87540f7c41",
+                "hierarchyLevel": 0,
+                "iconUrl": "https://example.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10318?size=medium",
+                "id": "10010",
+                "name": "Task",
+                "self": "https://example.atlassian.net/rest/api/3/issuetype/10010",
+                "subtask": false
+              },
+              "labels": [
+                "mcp-fixture"
+              ],
+              "priority": {
+                "iconUrl": "https://example.atlassian.net/images/icons/priorities/medium_new.svg",
+                "id": "3",
+                "name": "Medium",
+                "self": "https://example.atlassian.net/rest/api/3/priority/3"
+              },
+              "status": {
+                "description": "",
+                "iconUrl": "https://example.atlassian.net/images/icons/statuses/generic.png",
+                "id": "10003",
+                "name": "To Do",
+                "self": "https://example.atlassian.net/rest/api/3/status/10003",
+                "statusCategory": {
+                  "colorName": "blue-gray",
+                  "id": 2,
+                  "key": "new",
+                  "name": "To Do",
+                  "self": "https://example.atlassian.net/rest/api/3/statuscategory/2"
+                }
+              },
+              "summary": "Issue to delete",
+              "updated": "2026-11-11T12:22:06.280+0200"
+            },
+            "id": "10027",
+            "key": "ONE-3",
+            "self": "https://example.atlassian.net/rest/api/3/issue/10027"
+          }
+        ]
+      },
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 200
+    }
+  }
+]

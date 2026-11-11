@@ -1,0 +1,25 @@
+[
+  {
+    "request": {
+      "body": {
+        "issues": [
+          "ONE-1"
+        ]
+      },
+      "method": "POST",
+      "url": "https://example.atlassian.net/rest/agile/1.0/sprint/99999999/issue"
+    },
+    "response": {
+      "body": {
+        "errorMessages": [
+          "We could not find the sprint"
+        ],
+        "errors": {}
+      },
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 404
+    }
+  }
+]

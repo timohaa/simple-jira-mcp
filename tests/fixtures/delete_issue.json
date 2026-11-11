@@ -1,0 +1,16 @@
+[
+  {
+    "request": {
+      "body": null,
+      "method": "DELETE",
+      "url": "https://example.atlassian.net/rest/api/3/issue/ONE-3?deleteSubtasks=false"
+    },
+    "response": {
+      "body": null,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 204
+    }
+  }
+]

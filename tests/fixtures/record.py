@@ -1,6 +1,7 @@
 """Record real Jira responses as replay fixtures.
 
-Run against a sandbox project only. The script creates three issues labelled
+Run against a sandbox project only, with the account language set to
+English. The script creates three issues labelled
 `mcp-fixture` in that project, runs every client operation against them, and
 deletes them again. It touches no other issue.
 
@@ -60,6 +61,8 @@ class Recorder(httpx.AsyncBaseTransport):
         self.exchanges = []
 
     async def handle_async_request(self, request):
+        # A multipart upload is a stream; read it so the body can be kept.
+        await request.aread()
         response = await self.inner.handle_async_request(request)
         body = await response.aread()
         await response.aclose()
@@ -148,6 +151,16 @@ async def record_issue_scenarios(session, keys):
             await client.create_issue(
                 CreateIssueParams(project_key=project, summary="Rejected", **params)
             )
+    # In the sandbox only Task has the priority field; Bug does not.
+    async with session.scenario("create_invalid_priority_type_without_priority"):
+        await client.create_issue(
+            CreateIssueParams(
+                project_key=project,
+                summary="Rejected",
+                issue_type="Bug",
+                priority="NoSuchPriority",
+            )
+        )
     async with session.scenario("create_project_not_found"):
         await client.create_issue(
             CreateIssueParams(project_key="ZZNOPROJECT", summary="Rejected")
@@ -163,9 +176,13 @@ async def record_issue_scenarios(session, keys):
         await client.add_comment(key, "First line\nSecond line")
     async with session.scenario("get_transitions"):
         transitions = await client.get_transitions(key)
-    if not is_error(transitions) and transitions["transitions"]:
-        async with session.scenario("transition_issue"):
-            await client.transition_issue(key, transitions["transitions"][0]["id"])
+    if is_error(transitions) or not transitions["transitions"]:
+        raise SystemExit("The sandbox issue has no transitions to record")
+    names = [transition["name"] for transition in transitions["transitions"]]
+    async with session.scenario("transition_issue"):
+        await client.transition_issue(key, names[0])
+    async with session.scenario("transition_with_comment"):
+        await client.transition_issue(key, names[-1], comment="Moved by recorder")
     async with session.scenario("transition_not_found"):
         await client.transition_issue(key, "No such transition")
 
@@ -236,7 +253,7 @@ async def record_search_scenarios(session, keys):
             jql, max_results=1, next_page_token=first["next_page_token"]
         )
     async with session.scenario("search_invalid_jql"):
-        await client.search(f'project = "{session.project}" AND nosuchfield = 1')
+        await client.search(f'project = "{session.project}" AND (')
 
 
 async def record(config, project):

@@ -1,0 +1,31 @@
+[
+  {
+    "request": {
+      "body": {
+        "fields": {
+          "issuetype": {
+            "name": "NoSuchType"
+          },
+          "project": {
+            "key": "ONE"
+          },
+          "summary": "Rejected"
+        }
+      },
+      "method": "POST",
+      "url": "https://example.atlassian.net/rest/api/3/issue"
+    },
+    "response": {
+      "body": {
+        "errorMessages": [],
+        "errors": {
+          "issuetype": "Specify a valid issue type"
+        }
+      },
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 400
+    }
+  }
+]

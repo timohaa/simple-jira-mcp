@@ -1,0 +1,34 @@
+[
+  {
+    "request": {
+      "body": {
+        "fields": [
+          "summary",
+          "status",
+          "assignee",
+          "priority",
+          "updated",
+          "created",
+          "labels",
+          "issuetype"
+        ],
+        "jql": "project = \"ONE\" AND (",
+        "maxResults": 50
+      },
+      "method": "POST",
+      "url": "https://example.atlassian.net/rest/api/3/search/jql"
+    },
+    "response": {
+      "body": {
+        "errorMessages": [
+          "Error in the JQL Query: Expecting a field name at the end of the query."
+        ],
+        "errors": {}
+      },
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 400
+    }
+  }
+]

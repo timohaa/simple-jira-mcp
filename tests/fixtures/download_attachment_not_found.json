@@ -1,0 +1,21 @@
+[
+  {
+    "request": {
+      "body": null,
+      "method": "GET",
+      "url": "https://example.atlassian.net/rest/api/3/attachment/content/99999999"
+    },
+    "response": {
+      "body": {
+        "errorMessages": [
+          "The attachment with id '99999999' does not exist"
+        ],
+        "errors": {}
+      },
+      "headers": {
+        "content-type": "application/json;charset=UTF-8"
+      },
+      "status": 404
+    }
+  }
+]
