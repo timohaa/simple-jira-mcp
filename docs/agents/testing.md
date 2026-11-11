@@ -22,9 +22,13 @@ apply here.
   addresses, account IDs and customer text. Replace the site URL with
   `https://example.atlassian.net`.
 - Recording is a manual step outside the test run, done with
-  `python -m tests.fixtures.record --project <KEY>`. It creates and deletes
-  its own labelled issues, so run it only against a sandbox project. Ask the
-  user before calling a live Jira.
+  `python -m tests.fixtures.record --project <KEY> [--config-id <ID>]`. It
+  reads configs from `JIRA_CONFIG_JSON`. It creates and deletes its own
+  labelled issues, so run it only against a sandbox project. Ask the user
+  before calling a live Jira.
+- The recorder scrubs each file through `tests/fixtures/scrub.py`. Board,
+  sprint, status and priority names stay as recorded, so review every file
+  before committing it.
 - If a test needs a response that has no recording and you cannot make one,
   stop and ask. Do not invent the response.
 - Most existing tests predate this rule and build responses by hand. Do not
