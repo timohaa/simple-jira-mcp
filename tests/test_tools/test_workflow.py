@@ -1,9 +1,7 @@
 """Tests for issue workflow tool validation and config selection."""
 
-import json
 from unittest.mock import AsyncMock
 
-import httpx
 import pytest
 
 from simple_jira_mcp.jira import client as jira_client
@@ -136,25 +134,13 @@ async def test_runtime_error_forwarded(two_configs, monkeypatch, tool_name, kwar
     assert await getattr(workflow, tool_name)("ONE-123", **kwargs) == error
 
 
-async def test_comment_tool_integration(two_configs, patch_async_client):
-    requests = []
+async def test_comment_tool_integration(two_configs, replay):
+    jira = replay("add_comment")
 
-    def handler(request):
-        requests.append(request)
-        return httpx.Response(201, json={"id": "123", "created": "2026-10-01"})
+    result = await workflow.add_comment(
+        " one-1 ", "First line\nSecond line", config_id="second"
+    )
 
-    patch_async_client(httpx.MockTransport(handler))
-    result = await workflow.add_comment(" one-123 ", "Body", config_id="second")
-
-    assert requests[0].url.host == "second.atlassian.net"
-    assert requests[0].url.path == "/rest/api/3/issue/ONE-123/comment"
-    assert json.loads(requests[0].content) == {
-        "body": {
-            "type": "doc",
-            "version": 1,
-            "content": [
-                {"type": "paragraph", "content": [{"type": "text", "text": "Body"}]}
-            ],
-        }
-    }
-    assert result == {"id": "123", "created": "2026-10-01"}
+    assert jira.requests[0].url.host == "second.atlassian.net"
+    assert jira.requests[0].url.path == "/rest/api/3/issue/ONE-1/comment"
+    assert result == {"id": "10012", "created": "2026-11-11T12:22:10.760+0200"}

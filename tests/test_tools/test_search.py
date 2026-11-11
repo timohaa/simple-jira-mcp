@@ -1,7 +1,5 @@
 """Tests for search_issues tool with mocked Jira API."""
 
-import json
-
 import httpx
 import pytest
 
@@ -79,70 +77,56 @@ class TestSearchValidation:
         assert result["error"]["code"] == "CONFIG_NOT_FOUND"
 
 
+JQL = 'project = "ONE" AND labels = mcp-fixture ORDER BY key ASC'
+
+
 class TestSearchIntegration:
-    @pytest.mark.asyncio
-    async def test_search_integration_success(self, mock_config, patch_async_client):
-        async def handler(request: httpx.Request) -> httpx.Response:
-            payload = json.loads(request.content.decode())
-            assert payload["jql"] == "project = ONE"
-            assert payload["maxResults"] == 50
-            return httpx.Response(
-                200,
-                json={
-                    "isLast": False,
-                    "nextPageToken": "next",
-                    "issues": [
-                        {
-                            "key": "ONE-1",
-                            "fields": {
-                                "summary": "Issue title",
-                                "status": {"name": "In Progress"},
-                                "assignee": {"displayName": "Jane"},
-                                "priority": {"name": "High"},
-                                "issuetype": {"name": "Task"},
-                                "labels": ["backend"],
-                                "created": "2025-01-01",
-                                "updated": "2025-01-02",
-                            },
-                        }
-                    ],
-                },
-            )
+    async def test_search_integration_success(self, mock_config, replay):
+        jira = replay("search")
 
-        transport = httpx.MockTransport(handler)
-        patch_async_client(transport)
+        result = await search_issues(JQL)
 
-        result = await search_issues("project = ONE")
+        assert jira.requests[0].url.host == "test.atlassian.net"
+        assert jira.sent(0)["jql"] == JQL
+        assert jira.sent(0)["maxResults"] == 50
+        assert result["is_last"] is True
+        assert [issue["key"] for issue in result["issues"]] == [
+            "ONE-1",
+            "ONE-2",
+            "ONE-3",
+        ]
+        assert result["issues"][0]["status"] == "Done"
+        assert result["issues"][0]["url"] == "https://test.atlassian.net/browse/ONE-1"
 
-        assert result["is_last"] is False
-        assert result["issues"][0]["key"] == "ONE-1"
-        assert result["issues"][0]["status"] == "In Progress"
-        assert result["next_page_token"] == "next"
+    async def test_search_integration_with_custom_params(self, mock_config, replay):
+        jira = replay("search_two_pages")
 
-    @pytest.mark.asyncio
-    async def test_search_integration_with_custom_params(
-        self, mock_config, patch_async_client
-    ):
-        async def handler(request: httpx.Request) -> httpx.Response:
-            payload = json.loads(request.content.decode())
-            assert payload["maxResults"] == 25
-            assert payload["nextPageToken"] == "token"
-            assert payload["fields"] == ["summary", "status"]
-            response_data = {"isLast": True, "issues": []}
-            return httpx.Response(200, json=response_data)
-
-        transport = httpx.MockTransport(handler)
-        patch_async_client(transport)
-
-        result = await search_issues(
-            "project = ONE",
-            limit=25,
-            next_page_token="token",
-            fields=["summary", "status"],
+        first = await search_issues(JQL, limit=1)
+        second = await search_issues(
+            JQL, limit=1, next_page_token=first["next_page_token"]
         )
 
-        assert result["is_last"] is True
-        assert result["issues"] == []
+        assert jira.sent(0)["maxResults"] == 1
+        assert jira.sent(1)["nextPageToken"] == first["next_page_token"]
+        assert [issue["key"] for issue in first["issues"]] == ["ONE-1"]
+        assert [issue["key"] for issue in second["issues"]] == ["ONE-2"]
+
+    async def test_search_integration_forwards_fields(self, mock_config, replay):
+        fields = [
+            "summary",
+            "description",
+            "reporter",
+            "resolution",
+            "project",
+            "comment",
+            "attachment",
+        ]
+        jira = replay("search_all_fields")
+
+        result = await search_issues(JQL, fields=fields)
+
+        assert jira.sent(0)["fields"] == fields
+        assert result["issues"][0]["reporter"] == "User 1"
 
     @pytest.mark.asyncio
     async def test_search_integration_auth_failed(
@@ -159,17 +143,10 @@ class TestSearchIntegration:
         assert result["isError"] is True
         assert result["error"]["code"] == "AUTH_FAILED"
 
-    @pytest.mark.asyncio
-    async def test_search_integration_invalid_jql(
-        self, mock_config, patch_async_client
-    ):
-        async def handler(_: httpx.Request) -> httpx.Response:
-            return httpx.Response(400, json={"errorMessages": ["Invalid query"]})
+    async def test_search_integration_invalid_jql(self, mock_config, replay):
+        replay("search_invalid_jql")
 
-        transport = httpx.MockTransport(handler)
-        patch_async_client(transport)
-
-        result = await search_issues("project = ONE")
+        result = await search_issues('project = "ONE" AND (')
 
         assert result["isError"] is True
         assert result["error"]["code"] == "INVALID_JQL"

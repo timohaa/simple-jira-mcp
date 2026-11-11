@@ -1,33 +1,26 @@
 """Tests for JiraClient search pagination state."""
 
-import json
-
 import httpx
 import pytest
 
 
-@pytest.mark.asyncio
-async def test_search_with_next_page_token(client, patch_async_client):
-    """Test search handles pagination tokens."""
-    recorded: dict[str, object] = {}
+async def test_search_follows_next_page_token(client, replay):
+    """Test the token from one page fetches the next page."""
+    jql = 'project = "ONE" AND labels = mcp-fixture ORDER BY key ASC'
+    jira = replay("search_two_pages")
 
-    async def handler(request: httpx.Request) -> httpx.Response:
-        recorded["json"] = json.loads(request.content.decode())
-        response_body = {
-            "isLast": False,
-            "nextPageToken": "token_page_2",
-            "issues": [],
-        }
-        return httpx.Response(200, json=response_body)
+    first = await client.search(jql, max_results=1)
+    second = await client.search(
+        jql, max_results=1, next_page_token=first["next_page_token"]
+    )
 
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.search("project = ONE", next_page_token="token_page_1")
-
-    assert recorded["json"]["nextPageToken"] == "token_page_1"
-    assert result["next_page_token"] == "token_page_2"
-    assert result["is_last"] is False
+    assert first["is_last"] is False
+    assert [issue["key"] for issue in first["issues"]] == ["ONE-1"]
+    assert "nextPageToken" not in jira.sent(0)
+    assert jira.sent(1)["nextPageToken"] == first["next_page_token"]
+    assert first["next_page_token"].startswith("EAEY")
+    assert [issue["key"] for issue in second["issues"]] == ["ONE-2"]
+    assert second["is_last"] is False
 
 
 @pytest.mark.asyncio

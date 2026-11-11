@@ -1,131 +1,50 @@
 """Tests for JiraClient search operations."""
 
-import json
-
 import httpx
 import pytest
 
+JQL = 'project = "ONE" AND labels = mcp-fixture ORDER BY key ASC'
 
-@pytest.mark.asyncio
-async def test_search_sends_payload_and_transforms(client, patch_async_client):
+
+async def test_search_sends_payload_and_transforms(client, replay):
     """Test search sends correct payload and transforms response."""
-    recorded: dict[str, object] = {}
+    jira = replay("search")
 
-    async def handler(request: httpx.Request) -> httpx.Response:
-        recorded["method"] = request.method
-        recorded["url"] = str(request.url)
-        recorded["json"] = json.loads(request.content.decode())
-        response_body = {
-            "isLast": True,
-            "issues": [
-                {
-                    "key": "ONE-123",
-                    "fields": {
-                        "summary": "Search result",
-                        "status": {"name": "Done"},
-                        "assignee": {"displayName": "Jane"},
-                        "priority": {"name": "High"},
-                        "issuetype": {"name": "Task"},
-                        "labels": ["backend"],
-                        "created": "2025-01-01",
-                        "updated": "2025-01-02",
-                    },
-                }
-            ],
-        }
-        return httpx.Response(200, json=response_body)
+    result = await client.search(JQL)
 
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.search("project = ONE")
-
-    assert recorded["method"] == "POST"
-    assert recorded["url"].endswith("/rest/api/3/search/jql")
-    assert recorded["json"]["maxResults"] == 50
-    assert "startAt" not in recorded["json"]
-    assert recorded["json"]["fields"] == [
-        "summary",
-        "status",
-        "assignee",
-        "priority",
-        "updated",
-        "created",
-        "labels",
-        "issuetype",
-    ]
+    assert len(jira.requests) == 1
+    assert jira.requests[0].method == "POST"
+    assert jira.requests[0].url == "https://example.atlassian.net/rest/api/3/search/jql"
+    assert jira.sent(0) == {
+        "jql": JQL,
+        "maxResults": 50,
+        "fields": [
+            "summary",
+            "status",
+            "assignee",
+            "priority",
+            "updated",
+            "created",
+            "labels",
+            "issuetype",
+        ],
+    }
     assert result["is_last"] is True
+    assert "next_page_token" not in result
     assert "total" not in result
+    assert [issue["key"] for issue in result["issues"]] == ["ONE-1", "ONE-2", "ONE-3"]
     issue = result["issues"][0]
-    assert issue["key"] == "ONE-123"
-    assert issue["summary"] == "Search result"
-    assert issue["assignee"] == "Jane"
+    assert issue["summary"] == "Recorded issue, updated"
+    assert issue["status"] == "Done"
+    assert issue["assignee"] is None
+    assert issue["priority"] == "Medium"
+    assert issue["labels"] == ["mcp-fixture"]
     assert issue["issue_type"] == "Task"
+    assert issue["url"] == "https://example.atlassian.net/browse/ONE-1"
 
 
-@pytest.mark.asyncio
-async def test_search_returns_requested_fields(client, patch_async_client):
+async def test_search_returns_requested_fields(client, replay):
     """Test search output includes non-default requested fields."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        response_body = {
-            "isLast": True,
-            "issues": [
-                {
-                    "key": "ONE-123",
-                    "fields": {
-                        "summary": "Search result",
-                        "description": {
-                            "type": "doc",
-                            "content": [
-                                {
-                                    "type": "paragraph",
-                                    "content": [
-                                        {"type": "text", "text": "Details here"}
-                                    ],
-                                }
-                            ],
-                        },
-                        "reporter": {"displayName": "Reporter"},
-                        "resolution": {"name": "Fixed"},
-                        "project": {"key": "ONE", "name": "Project One"},
-                        "comment": {
-                            "comments": [
-                                {
-                                    "author": {"displayName": "Commenter"},
-                                    "created": "2025-01-03",
-                                    "body": {
-                                        "type": "doc",
-                                        "content": [
-                                            {
-                                                "type": "paragraph",
-                                                "content": [
-                                                    {"type": "text", "text": "Hi"}
-                                                ],
-                                            }
-                                        ],
-                                    },
-                                }
-                            ]
-                        },
-                        "attachment": [
-                            {
-                                "id": "9",
-                                "filename": "file.txt",
-                                "size": 2048,
-                                "mimeType": "text/plain",
-                                "created": "2025-01-04",
-                            }
-                        ],
-                    },
-                }
-            ],
-        }
-        return httpx.Response(200, json=response_body)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
     requested = [
         "summary",
         "description",
@@ -135,35 +54,46 @@ async def test_search_returns_requested_fields(client, patch_async_client):
         "comment",
         "attachment",
     ]
-    result = await client.search("project = ONE", fields=requested)
+    jira = replay("search_all_fields")
 
+    result = await client.search(JQL, fields=requested)
+
+    assert jira.sent(0)["fields"] == requested
     issue = result["issues"][0]
-    assert issue["description"] == "Details here"
-    assert issue["reporter"] == "Reporter"
-    assert issue["resolution"] == "Fixed"
+    assert issue["description"] == "Line 1\nLine 2"
+    assert issue["reporter"] == "User 1"
+    assert issue["resolution"] == "Done"
     assert issue["project"] == "ONE"
-    assert issue["comments"][0]["body"] == "Hi"
-    assert issue["attachments"][0]["filename"] == "file.txt"
+    assert [comment["body"] for comment in issue["comments"]] == [
+        "First line\nSecond line",
+        "Moved by recorder",
+    ]
+    assert [(a["filename"], a["size_kb"]) for a in issue["attachments"]] == [
+        ("notes.txt", 0.02)
+    ]
     # Fields that were not requested must not appear
     assert "status" not in issue
     assert "labels" not in issue
+    assert result["issues"][1]["description"] == ""
+    assert result["issues"][1]["resolution"] is None
 
 
-@pytest.mark.asyncio
-async def test_search_returns_invalid_jql_error(client, patch_async_client):
-    """Test search returns error for invalid JQL."""
+async def test_search_returns_invalid_jql_error(client, replay):
+    """Test search returns Jira's own message for a JQL syntax error."""
+    replay("search_invalid_jql")
 
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(400, json={"errorMessages": ["Bad JQL"]})
+    result = await client.search('project = "ONE" AND (')
 
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.search('text ~ "oops"')
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "INVALID_JQL"
-    assert "Bad JQL" in result["error"]["message"]
+    assert result == {
+        "isError": True,
+        "error": {
+            "code": "INVALID_JQL",
+            "message": (
+                "Error in the JQL Query: Expecting a field name at the end of "
+                "the query."
+            ),
+        },
+    }
 
 
 @pytest.mark.asyncio

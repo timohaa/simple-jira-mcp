@@ -4,79 +4,73 @@ import httpx
 import pytest
 
 
-@pytest.mark.asyncio
-async def test_get_issue_transforms_data(client, patch_async_client):
+async def test_get_issue_transforms_data(client, replay):
     """Test get_issue transforms response data."""
-    recorded: dict[str, object] = {}
+    jira = replay("get_issue")
 
-    async def handler(request: httpx.Request) -> httpx.Response:
-        recorded["url"] = str(request.url)
-        body = {
-            "key": "ONE-123",
-            "fields": {
-                "summary": "Issue summary",
-                "description": {
-                    "type": "doc",
-                    "content": [
-                        {
-                            "type": "paragraph",
-                            "content": [{"type": "text", "text": "Description text"}],
-                        }
-                    ],
-                },
-                "status": {"name": "Done"},
-                "assignee": {"displayName": "Assignee"},
-                "reporter": {"displayName": "Reporter"},
-                "priority": {"name": "Medium"},
-                "issuetype": {"name": "Task"},
-                "labels": ["backend"],
-                "created": "2025-01-01",
-                "updated": "2025-01-02",
-                "resolutiondate": None,
-                "duedate": "2025-02-01",
-                "comment": {
-                    "comments": [
-                        {
-                            "author": {"displayName": "Commenter"},
-                            "created": "2025-01-03",
-                            "body": {
-                                "type": "doc",
-                                "content": [
-                                    {
-                                        "type": "paragraph",
-                                        "content": [{"type": "text", "text": "Hi"}],
-                                    }
-                                ],
-                            },
-                        }
-                    ]
-                },
-                "attachment": [
-                    {
-                        "id": "123",
-                        "filename": "file.txt",
-                        "size": 2048,
-                        "mimeType": "text/plain",
-                        "created": "2025-01-04",
-                    }
-                ],
+    result = await client.get_issue("ONE-1")
+
+    assert len(jira.requests) == 1
+    assert (
+        jira.requests[0].url == "https://example.atlassian.net/rest/api/3/issue/ONE-1"
+    )
+    assert result == {
+        "key": "ONE-1",
+        "summary": "Recorded issue, updated",
+        "description": "Line 1\nLine 2",
+        "status": "Done",
+        "assignee": None,
+        "reporter": "User 1",
+        "priority": "Medium",
+        "issue_type": "Task",
+        "labels": ["mcp-fixture"],
+        "created": "2026-11-11T12:22:04.561+0200",
+        "updated": "2026-11-11T12:22:14.763+0200",
+        "resolved": "2026-11-11T12:22:12.835+0200",
+        "duedate": None,
+        "url": "https://example.atlassian.net/browse/ONE-1",
+        "comments": [
+            {
+                "author": "User 1",
+                "created": "2026-11-11T12:22:10.760+0200",
+                "body": "First line\nSecond line",
             },
-        }
-        return httpx.Response(200, json=body)
+            {
+                "author": "User 1",
+                "created": "2026-11-11T12:22:13.343+0200",
+                "body": "Moved by recorder",
+            },
+        ],
+        "attachments": [
+            {
+                "id": "10007",
+                "filename": "notes.txt",
+                "size_kb": 0.02,
+                "mime_type": "text/plain",
+                "created": "2026-11-11T12:22:14.384+0200",
+            }
+        ],
+    }
 
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
 
-    result = await client.get_issue("ONE-123")
+async def test_get_issue_missing_issue_is_not_found(client, replay):
+    replay("get_issue_not_found")
 
-    assert recorded["url"].endswith("/rest/api/3/issue/ONE-123")
-    assert result["description"] == "Description text"
-    assert result["duedate"] == "2025-02-01"
-    assert result["comments"][0]["body"] == "Hi"
-    attachment = result["attachments"][0]
-    assert attachment["filename"] == "file.txt"
-    assert attachment["size_kb"] == 2.0
-    assert result["url"].endswith("/browse/ONE-123")
+    result = await client.get_issue("ONE-99999999")
+
+    assert result == {
+        "isError": True,
+        "error": {"code": "ISSUE_NOT_FOUND", "message": "Issue not found"},
+    }
+
+
+async def test_get_issue_with_rejected_token_is_reported_as_not_found(client, replay):
+    """Jira answers a bad API token with 404, so the cause cannot be told apart."""
+    replay("auth_failed")
+
+    result = await client.get_issue("ONE-1")
+
+    assert result["error"]["code"] == "ISSUE_NOT_FOUND"
 
 
 @pytest.mark.asyncio
@@ -109,22 +103,6 @@ async def test_get_issue_auth_failed_error(client, patch_async_client):
 
     assert result["isError"] is True
     assert result["error"]["code"] == "AUTH_FAILED"
-
-
-@pytest.mark.asyncio
-async def test_get_issue_not_found_error(client, patch_async_client):
-    """Test get_issue returns error when issue not found."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(404)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.get_issue("ONE-123")
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "ISSUE_NOT_FOUND"
 
 
 @pytest.mark.asyncio

@@ -118,33 +118,31 @@ PRIORITY_REJECTED = httpx.Response(
 )
 
 
-INVALID = "Priority 'Urgent' is not valid for ONE-123."
-ALLOWED = [{"name": "High"}, {"name": "Low"}]
-EDITMETA = {"fields": {"priority": {"allowedValues": ALLOWED}}}
+EDITMETA_URL = "https://example.atlassian.net/rest/api/3/issue/ONE-1/editmeta"
+
+
+INVALID = "Priority 'NoSuchPriority' is not valid for ONE-1."
 
 
 @pytest.mark.parametrize(
-    "editmeta,message",
+    "faults,message",
     [
-        (httpx.Response(200, json=EDITMETA), f"{INVALID} Valid priorities: High, Low."),
-        (httpx.Response(200, json={"fields": {}}), INVALID),
-        (httpx.Response(500), INVALID),
+        ({}, f"{INVALID} Valid priorities: Highest, High, Medium, Low, Lowest."),
+        ({1: httpx.Response(200, json={"fields": {}})}, INVALID),
+        ({1: httpx.Response(500)}, INVALID),
     ],
 )
-async def test_update_issue_unknown_priority(
-    client, patch_async_client, editmeta, message
-):
-    requests = []
+async def test_update_issue_unknown_priority(client, replay, faults, message):
+    jira = replay("update_invalid_priority", faults)
 
-    def handler(request):
-        requests.append(request)
-        return PRIORITY_REJECTED if request.method == "PUT" else editmeta
+    result = await client.update_issue(
+        "ONE-1", UpdateIssueParams(priority="NoSuchPriority")
+    )
 
-    patch_async_client(httpx.MockTransport(handler))
-    result = await client.update_issue("ONE-123", UpdateIssueParams(priority="Urgent"))
-
-    assert [request.method for request in requests] == ["PUT", "GET"]
-    assert requests[1].url.path == "/rest/api/3/issue/ONE-123/editmeta"
+    assert [(r.method, str(r.url)) for r in jira.requests] == [
+        ("PUT", "https://example.atlassian.net/rest/api/3/issue/ONE-1"),
+        ("GET", EDITMETA_URL),
+    ]
     assert result["error"] == {"code": "INVALID_PRIORITY", "message": message}
 
 
@@ -219,3 +217,39 @@ async def test_request_failure(client, patch_async_client, operation):
 
     assert result["error"]["code"] == "JIRA_ERROR"
     assert "Request failed" in result["error"]["message"]
+
+
+async def test_update_issue_on_recorded_site(client, replay):
+    jira = replay("update_issue")
+
+    result = await client.update_issue(
+        "ONE-1",
+        UpdateIssueParams(summary="Recorded issue, updated", labels=["mcp-fixture"]),
+    )
+
+    assert jira.requests[0].method == "PUT"
+    assert jira.sent(0) == {
+        "fields": {"summary": "Recorded issue, updated", "labels": ["mcp-fixture"]}
+    }
+    assert result == {
+        "key": "ONE-1",
+        "url": "https://example.atlassian.net/browse/ONE-1",
+        "updated": ["labels", "summary"],
+    }
+
+
+async def test_delete_issue_on_recorded_site(client, replay):
+    jira = replay("delete_issue")
+
+    result = await client.delete_issue("ONE-3")
+
+    assert jira.requests[0].method == "DELETE"
+    assert result == {"key": "ONE-3", "deleted": True}
+
+
+async def test_delete_missing_issue_is_not_found(client, replay):
+    replay("delete_issue_not_found")
+
+    result = await client.delete_issue("ONE-99999999")
+
+    assert result["error"] == {"code": "ISSUE_NOT_FOUND", "message": "Issue not found"}

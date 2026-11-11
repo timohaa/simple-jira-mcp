@@ -1,6 +1,5 @@
 """Tests for JiraClient create_issue operations."""
 
-import json
 from dataclasses import replace
 
 import httpx
@@ -11,46 +10,81 @@ from simple_jira_mcp.jira.create import CreateIssueParams
 PARAMS = CreateIssueParams(project_key="ONE", summary="Summary")
 
 
-@pytest.mark.asyncio
-async def test_create_issue_builds_payload(client, patch_async_client):
+async def test_create_issue_builds_payload(client, replay):
     """Test create_issue builds correct API payload."""
-    recorded: dict[str, object] = {}
-
-    async def handler(request: httpx.Request) -> httpx.Response:
-        recorded["json"] = json.loads(request.content.decode())
-        return httpx.Response(
-            201,
-            json={"key": "ONE-200", "id": "200", "self": "https://example/api/issue"},
-        )
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
+    jira = replay("create_issue")
 
     result = await client.create_issue(
         CreateIssueParams(
             project_key="ONE",
-            summary="New issue",
-            issue_type="Bug",
+            summary="Recorded issue",
             description="Line 1\nLine 2",
-            priority="High",
-            labels=["backend"],
-            assignee_account_id="abc",
+            labels=["mcp-fixture"],
         )
     )
 
-    payload = recorded["json"]["fields"]
-    assert payload["project"]["key"] == "ONE"
-    assert payload["issuetype"]["name"] == "Bug"
-    assert payload["priority"]["name"] == "High"
-    assert payload["labels"] == ["backend"]
-    assert payload["assignee"]["accountId"] == "abc"
-    description = payload["description"]
-    assert description["type"] == "doc"
-    assert len(description["content"]) == 1
-    paragraph = description["content"][0]["content"]
-    texts = [node for node in paragraph if node.get("type") == "text"]
-    assert texts[0]["text"] == "Line 1"
-    assert result["key"] == "ONE-200"
+    assert jira.requests[0].method == "POST"
+    assert jira.requests[0].url == "https://example.atlassian.net/rest/api/3/issue"
+    assert jira.sent(0) == {
+        "fields": {
+            "project": {"key": "ONE"},
+            "summary": "Recorded issue",
+            "issuetype": {"name": "Task"},
+            "labels": ["mcp-fixture"],
+            "description": {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {"type": "text", "text": "Line 1"},
+                            {"type": "hardBreak"},
+                            {"type": "text", "text": "Line 2"},
+                        ],
+                    }
+                ],
+            },
+        }
+    }
+    assert result == {
+        "key": "ONE-1",
+        "id": "10025",
+        "url": "https://example.atlassian.net/browse/ONE-1",
+    }
+
+
+async def test_create_issue_sends_optional_fields(client, replay):
+    jira = replay("create_issue")
+
+    await client.create_issue(
+        replace(PARAMS, issue_type="Bug", priority="High", assignee_account_id="abc")
+    )
+
+    assert jira.sent(0) == {
+        "fields": {
+            "project": {"key": "ONE"},
+            "summary": "Summary",
+            "issuetype": {"name": "Bug"},
+            "priority": {"name": "High"},
+            "assignee": {"accountId": "abc"},
+        }
+    }
+
+
+async def test_create_issue_unknown_project_is_validation_error(client, replay):
+    """Jira rejects an unknown project with 400, not 404."""
+    replay("create_project_not_found")
+
+    result = await client.create_issue(replace(PARAMS, project_key="ZZNOPROJECT"))
+
+    assert result["error"] == {
+        "code": "VALIDATION_ERROR",
+        "message": (
+            "project: The target project doesn't exist or you don't have "
+            "permission to create issues in it."
+        ),
+    }
 
 
 @pytest.mark.asyncio
@@ -101,86 +135,68 @@ async def test_create_issue_rate_limited_error(client, patch_async_client):
     assert result["error"]["code"] == "RATE_LIMITED"
 
 
-@pytest.mark.asyncio
-async def test_create_issue_invalid_issue_type_error(client, patch_async_client):
+async def test_create_issue_invalid_issue_type_error(client, replay):
     """Test create_issue maps invalid issue type errors."""
+    replay("create_invalid_issue_type")
 
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(400, json={"errors": {"issuetype": "Invalid type"}})
+    result = await client.create_issue(replace(PARAMS, issue_type="NoSuchType"))
 
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.create_issue(PARAMS)
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "INVALID_ISSUE_TYPE"
+    assert result["error"] == {
+        "code": "INVALID_ISSUE_TYPE",
+        "message": "Specify a valid issue type",
+    }
 
 
-PRIORITY_REJECTED = httpx.Response(
-    400,
-    json={"errors": {"priority": "Specify the Priority (name) in the string format"}},
+TYPES_URL = (
+    "https://example.atlassian.net/rest/api/3/issue/createmeta/ONE/issuetypes"
+    "?maxResults=200"
 )
-INVALID = "Priority 'Urgent' is not valid for bug issues in ONE."
-ISSUE_TYPES = {"issueTypes": [{"id": "1", "name": "Task"}, {"id": "7", "name": "Bug"}]}
-ALLOWED = [{"name": "High"}, {"name": "Low"}]
-TYPE_FIELDS = {
-    "fields": [
-        {"fieldId": "summary"},
-        {"fieldId": "priority", "allowedValues": ALLOWED},
-    ]
-}
-TYPES_PATH = "/rest/api/3/issue/createmeta/ONE/issuetypes"
+TYPE_FIELDS_URL = (
+    "https://example.atlassian.net/rest/api/3/issue/createmeta/ONE/issuetypes/10010"
+    "?maxResults=200"
+)
+
+
+INVALID = "Priority 'NoSuchPriority' is not valid for Task issues in ONE."
 
 
 @pytest.mark.parametrize(
-    "issue_types,type_fields,paths,message",
+    "faults,lookups,message",
     [
         (
-            httpx.Response(200, json=ISSUE_TYPES),
-            httpx.Response(200, json=TYPE_FIELDS),
-            [TYPES_PATH, f"{TYPES_PATH}/7"],
-            f"{INVALID} Valid priorities: High, Low.",
+            {},
+            [TYPES_URL, TYPE_FIELDS_URL],
+            f"{INVALID} Valid priorities: Highest, High, Medium, Low, Lowest.",
         ),
-        (
-            httpx.Response(200, json=ISSUE_TYPES),
-            httpx.Response(200, json={"fields": [{"fieldId": "summary"}]}),
-            [TYPES_PATH, f"{TYPES_PATH}/7"],
-            INVALID,
-        ),
-        (
-            httpx.Response(200, json=ISSUE_TYPES),
-            httpx.Response(500),
-            [TYPES_PATH, f"{TYPES_PATH}/7"],
-            INVALID,
-        ),
-        (
-            httpx.Response(200, json={"issueTypes": [{"id": "1", "name": "Task"}]}),
-            None,
-            [TYPES_PATH],
-            INVALID,
-        ),
-        (httpx.Response(403), None, [TYPES_PATH], INVALID),
+        ({2: httpx.Response(500)}, [TYPES_URL, TYPE_FIELDS_URL], INVALID),
+        ({1: httpx.Response(403)}, [TYPES_URL], INVALID),
     ],
 )
-async def test_create_issue_unknown_priority(
-    client, patch_async_client, issue_types, type_fields, paths, message
+async def test_create_issue_unknown_priority_lists_valid_priorities(
+    client, replay, faults, lookups, message
 ):
     """Test create_issue names the priority and lists the allowed ones."""
-    lookups = []
+    jira = replay("create_invalid_priority", faults)
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        if request.method == "POST":
-            return PRIORITY_REJECTED
-        lookups.append(request.url.path)
-        return issue_types if request.url.path == TYPES_PATH else type_fields
+    result = await client.create_issue(replace(PARAMS, priority="NoSuchPriority"))
 
-    patch_async_client(httpx.MockTransport(handler))
-    params = replace(PARAMS, priority="Urgent", issue_type="bug")
-    result = await client.create_issue(params)
-
-    assert lookups == paths
+    assert [str(request.url) for request in jira.requests[1:]] == lookups
     assert result["error"] == {"code": "INVALID_PRIORITY", "message": message}
+
+
+async def test_create_issue_unknown_priority_for_type_without_priority(client, replay):
+    """The sandbox Bug type has no priority field, so none can be listed."""
+    jira = replay("create_invalid_priority_type_without_priority")
+
+    result = await client.create_issue(
+        replace(PARAMS, issue_type="Bug", priority="NoSuchPriority")
+    )
+
+    assert len(jira.requests) == 3
+    assert result["error"] == {
+        "code": "INVALID_PRIORITY",
+        "message": "Priority 'NoSuchPriority' is not valid for Bug issues in ONE.",
+    }
 
 
 async def test_create_issue_priority_error_without_priority(client, patch_async_client):

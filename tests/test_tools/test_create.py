@@ -1,7 +1,5 @@
 """Tests for create_issue tool with mocked Jira API."""
 
-import json
-
 import httpx
 import pytest
 
@@ -27,22 +25,12 @@ class TestCreateIssueValidation:
         assert result["error"]["code"] == "VALIDATION_ERROR"
         assert msg_snippet in result["error"]["message"].lower()
 
-    @pytest.mark.asyncio
-    async def test_lowercase_project_key_normalized(
-        self, mock_config, patch_async_client
-    ):
-        recorded: dict[str, object] = {}
-
-        async def handler(request: httpx.Request) -> httpx.Response:
-            recorded["json"] = json.loads(request.content.decode())
-            return httpx.Response(201, json={"key": "ONE-1", "id": "1"})
-
-        transport = httpx.MockTransport(handler)
-        patch_async_client(transport)
+    async def test_lowercase_project_key_normalized(self, mock_config, replay):
+        jira = replay("create_issue")
 
         await create_issue("one", "Test summary")
 
-        assert recorded["json"]["fields"]["project"]["key"] == "ONE"
+        assert jira.sent(0)["fields"]["project"] == {"key": "ONE"}
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("summary", ["", "   "])
@@ -78,21 +66,8 @@ class TestCreateIssueValidation:
 
 
 class TestCreateIssueIntegration:
-    @pytest.mark.asyncio
-    async def test_create_issue_integration_success(
-        self, mock_config, patch_async_client
-    ):
-        recorded: dict[str, object] = {}
-
-        async def handler(request: httpx.Request) -> httpx.Response:
-            recorded["json"] = json.loads(request.content.decode())
-            return httpx.Response(
-                201,
-                json={"key": "ONE-123", "id": "123"},
-            )
-
-        transport = httpx.MockTransport(handler)
-        patch_async_client(transport)
+    async def test_create_issue_integration_success(self, mock_config, replay):
+        jira = replay("create_issue")
 
         result = await create_issue(
             "ONE",
@@ -104,63 +79,59 @@ class TestCreateIssueIntegration:
             description="Details here",
         )
 
-        assert result["key"] == "ONE-123"
-        payload = recorded["json"]["fields"]
-        assert payload["issuetype"]["name"] == "Bug"
-        assert payload["priority"]["name"] == "High"
-        assert payload["labels"] == ["backend"]
-        assert payload["assignee"]["accountId"] == "abc"
-        assert payload["project"]["key"] == "ONE"
-        assert payload["summary"] == "New issue"
-        assert payload["description"]["type"] == "doc"
+        assert jira.requests[0].url == "https://test.atlassian.net/rest/api/3/issue"
+        assert result == {
+            "key": "ONE-1",
+            "id": "10025",
+            "url": "https://test.atlassian.net/browse/ONE-1",
+        }
+        assert jira.sent(0) == {
+            "fields": {
+                "project": {"key": "ONE"},
+                "summary": "New issue",
+                "issuetype": {"name": "Bug"},
+                "priority": {"name": "High"},
+                "labels": ["backend"],
+                "assignee": {"accountId": "abc"},
+                "description": {
+                    "type": "doc",
+                    "version": 1,
+                    "content": [
+                        {
+                            "type": "paragraph",
+                            "content": [{"type": "text", "text": "Details here"}],
+                        }
+                    ],
+                },
+            }
+        }
 
-    @pytest.mark.asyncio
     async def test_create_issue_integration_default_issue_type(
-        self, mock_config, patch_async_client
+        self, mock_config, replay
     ):
-        recorded: dict[str, object] = {}
-
-        async def handler(request: httpx.Request) -> httpx.Response:
-            recorded["json"] = json.loads(request.content.decode())
-            return httpx.Response(201, json={"key": "ONE-456", "id": "456"})
-
-        transport = httpx.MockTransport(handler)
-        patch_async_client(transport)
+        jira = replay("create_issue")
 
         result = await create_issue("ONE", "New issue")
 
-        assert result["key"] == "ONE-456"
-        assert recorded["json"]["fields"]["issuetype"]["name"] == "Task"
+        assert result["key"] == "ONE-1"
+        assert jira.sent(0)["fields"]["issuetype"] == {"name": "Task"}
 
 
 class TestCreateIssueApiErrors:
-    @pytest.mark.asyncio
     async def test_create_issue_integration_invalid_issue_type(
-        self, mock_config, patch_async_client
+        self, mock_config, replay
     ):
-        async def handler(_: httpx.Request) -> httpx.Response:
-            return httpx.Response(400, json={"errors": {"issuetype": "Invalid type"}})
+        replay("create_invalid_issue_type")
 
-        transport = httpx.MockTransport(handler)
-        patch_async_client(transport)
-
-        result = await create_issue("ONE", "Summary", issue_type="Invalid")
+        result = await create_issue("ONE", "Summary", issue_type="NoSuchType")
 
         assert result["isError"] is True
         assert result["error"]["code"] == "INVALID_ISSUE_TYPE"
 
-    @pytest.mark.asyncio
-    async def test_create_issue_integration_invalid_priority(
-        self, mock_config, patch_async_client
-    ):
-        async def handler(_: httpx.Request) -> httpx.Response:
-            error_json = {"errors": {"priority": "Invalid priority"}}
-            return httpx.Response(400, json=error_json)
+    async def test_create_issue_integration_invalid_priority(self, mock_config, replay):
+        replay("create_invalid_priority")
 
-        transport = httpx.MockTransport(handler)
-        patch_async_client(transport)
-
-        result = await create_issue("ONE", "Summary", priority="Unknown")
+        result = await create_issue("ONE", "Summary", priority="NoSuchPriority")
 
         assert result["isError"] is True
         assert result["error"]["code"] == "INVALID_PRIORITY"

@@ -258,3 +258,33 @@ async def test_error_status_creates_no_directory(client, patch_async_client):
 
         assert result["error"]["code"] == "ATTACHMENT_NOT_FOUND"
         assert list(Path(tmpdir).iterdir()) == []
+
+
+async def test_download_follows_recorded_redirect_to_media_host(client, replay):
+    """Jira answers the content URL with a redirect to its media store."""
+    jira = replay("download_attachment")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = await client.download_attachment(
+            "10007", Path(tmpdir), "ONE-1", "notes.txt"
+        )
+
+        assert [str(request.url) for request in jira.requests] == [
+            "https://example.atlassian.net/rest/api/3/attachment/content/10007",
+            "https://media.example.net/file",
+        ]
+        assert Path(result["path"]).read_bytes() == b"recorded attachment\n"
+        assert result["filename"] == "notes.txt"
+        assert result["size_kb"] == 0.02
+        assert result["mime_type"] == "text/plain"
+
+
+async def test_download_of_missing_attachment_is_not_found(client, replay):
+    replay("download_attachment_not_found")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = await client.download_attachment(
+            "99999999", Path(tmpdir), "ONE-1", "notes.txt"
+        )
+
+    assert result["error"]["code"] == "ATTACHMENT_NOT_FOUND"
