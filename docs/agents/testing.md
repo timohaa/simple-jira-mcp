@@ -58,7 +58,6 @@ apply here.
   Do not recompute the expected value with the code under test or a copy of
   its logic.
 - Check that a new test fails when the behaviour it pins is broken.
-- Cover error conditions as well as the happy path.
 
 ## Module names
 
@@ -68,19 +67,13 @@ apply here.
 
 ## Shared fixtures
 
-- `tests/conftest.py` holds `clean_config`, `mock_config` (one config),
-  `two_configs` and `patch_async_client`. Use them; do not redefine them in
-  a test module.
-- `tests/jira/conftest.py` holds `client` (a `JiraClient` for
-  `https://example.atlassian.net`) and `workflow_transitions` for the Jira
-  client tests.
+- Shared fixtures live in `tests/conftest.py` and `tests/jira/conftest.py`.
+  Use them; do not redefine them in a test module.
 
 ## Skips and flakes
 
 - Do not use `skip`, `skipif`, `xfail` or `importorskip`. A missing
   dependency or fixture file must fail the test.
-- Treat a flaky test as a top-severity bug. Find the cause, such as shared
-  state, ordering or time. Do not add retries or disable the test.
 
 ## Conventions
 
