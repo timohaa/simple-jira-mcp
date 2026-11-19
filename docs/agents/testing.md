@@ -75,6 +75,20 @@ apply here.
 - Do not use `skip`, `skipif`, `xfail` or `importorskip`. A missing
   dependency or fixture file must fail the test.
 
+## When a test fails
+
+- Diagnose it against intended behaviour before editing code or tests.
+  The fix may span production code, shared test utilities, fixtures and
+  regression coverage.
+- Do not weaken assertions, widen timeouts, add sleeps or add retries to
+  hide a race. Use deterministic state setup and observable readiness
+  conditions.
+- When a failure exposes a coverage gap, add a regression test at the most
+  useful boundary.
+- Verify the focused failure first, then run the affected suite and the
+  relevant integration tests. Use repeated or stress runs only to test a
+  specific flakiness hypothesis or verify a stability fix.
+
 ## Conventions
 
 - pytest with `pytest-asyncio` in auto mode: write `async def test_...`.
