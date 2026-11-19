@@ -7,7 +7,6 @@ from simple_jira_mcp.tools.create import create_issue
 
 
 class TestCreateIssueValidation:
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "project_key,msg_snippet",
         [
@@ -32,7 +31,6 @@ class TestCreateIssueValidation:
 
         assert jira.sent(0)["fields"]["project"] == {"key": "ONE"}
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize("summary", ["", "   "])
     async def test_summary_required(self, mock_config, summary):
         result = await create_issue("ONE", summary)
@@ -40,7 +38,6 @@ class TestCreateIssueValidation:
         assert result["isError"] is True
         assert result["error"]["code"] == "VALIDATION_ERROR"
 
-    @pytest.mark.asyncio
     async def test_summary_too_long_returns_error(self, mock_config):
         long_summary = "x" * 256
         result = await create_issue("ONE", long_summary)
@@ -49,7 +46,6 @@ class TestCreateIssueValidation:
         assert result["error"]["code"] == "VALIDATION_ERROR"
         assert "255" in result["error"]["message"]
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "config_id,fixture_name",
         [
@@ -136,7 +132,6 @@ class TestCreateIssueApiErrors:
         assert result["isError"] is True
         assert result["error"]["code"] == "INVALID_PRIORITY"
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "status,expected_code",
         [

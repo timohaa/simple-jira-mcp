@@ -1,4 +1,4 @@
-"""Tests for get_issue tool with mocked Jira API."""
+"""Tests for get_issue tool validation, config selection and forwarding."""
 
 from unittest.mock import AsyncMock, patch
 
@@ -7,223 +7,86 @@ import pytest
 from simple_jira_mcp.tools.issue import get_issue
 
 
+@pytest.fixture
+def client_get_issue():
+    """Replace JiraClient.get_issue with a mock."""
+    with patch(
+        "simple_jira_mcp.jira.client.JiraClient.get_issue", new_callable=AsyncMock
+    ) as method:
+        method.return_value = {"key": "ONE-123"}
+        yield method
+
+
 class TestGetIssueValidation:
-    @pytest.mark.asyncio
-    async def test_empty_issue_key_returns_error(self, mock_config):
-        result = await get_issue("")
+    @pytest.mark.parametrize(
+        "issue_key,message",
+        [
+            ("", "Issue key is required"),
+            ("   ", "Issue key is required"),
+            (
+                "invalid",
+                "Invalid issue key format: 'INVALID'. Expected format: PROJECT-123",
+            ),
+        ],
+        ids=["empty", "whitespace", "bad-format"],
+    )
+    async def test_invalid_issue_key_returns_error(
+        self, mock_config, client_get_issue, issue_key, message
+    ):
+        result = await get_issue(issue_key)
 
-        assert result["isError"] is True
-        assert result["error"]["code"] == "VALIDATION_ERROR"
-        assert "required" in result["error"]["message"].lower()
-
-    @pytest.mark.asyncio
-    async def test_whitespace_issue_key_returns_error(self, mock_config):
-        result = await get_issue("   ")
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "VALIDATION_ERROR"
-
-    @pytest.mark.asyncio
-    async def test_invalid_issue_key_format_returns_error(self, mock_config):
-        result = await get_issue("invalid")
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "VALIDATION_ERROR"
-        assert "format" in result["error"]["message"].lower()
-
-    @pytest.mark.asyncio
-    async def test_lowercase_issue_key_normalized(self, mock_config):
-        mock_response = {
-            "key": "ONE-123",
-            "summary": "Test",
-            "status": "Done",
+        assert result == {
+            "isError": True,
+            "error": {"code": "VALIDATION_ERROR", "message": message},
         }
+        client_get_issue.assert_not_awaited()
 
-        with patch(
-            "simple_jira_mcp.jira.client.JiraClient.get_issue",
-            new_callable=AsyncMock,
-        ) as mock_get:
-            mock_get.return_value = mock_response
-            await get_issue("one-123")
+    @pytest.mark.parametrize(
+        "config_id,fixture_name",
+        [(None, "clean_config"), ("unknown", "mock_config")],
+        ids=["no-configs", "unknown-id"],
+    )
+    async def test_config_errors(self, request, config_id, fixture_name):
+        request.getfixturevalue(fixture_name)
 
-        mock_get.assert_called_once()
-        assert mock_get.call_args.args[0] == "ONE-123"
-
-    @pytest.mark.asyncio
-    async def test_missing_config_returns_error(self, clean_config):
-        result = await get_issue("ONE-123")
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "CONFIG_NOT_FOUND"
-
-    @pytest.mark.asyncio
-    async def test_unknown_config_id_returns_error(self, mock_config):
-        result = await get_issue("ONE-123", config_id="unknown")
+        result = await get_issue("ONE-123", config_id=config_id)
 
         assert result["isError"] is True
         assert result["error"]["code"] == "CONFIG_NOT_FOUND"
 
 
-class TestGetIssueSuccess:
-    @pytest.mark.asyncio
-    async def test_successful_get_issue(self, mock_config):
-        mock_response = {
-            "key": "ONE-123",
-            "summary": "Test issue",
-            "description": "This is a test",
-            "status": "Done",
-            "assignee": "John Doe",
-            "reporter": "Jane Smith",
-            "priority": "High",
-            "issue_type": "Task",
-            "labels": ["backend"],
-            "created": "2025-01-15",
-            "updated": "2025-01-20",
-            "resolved": None,
-            "duedate": None,
-            "url": "https://test.atlassian.net/browse/ONE-123",
-            "comments": [],
-            "attachments": [],
-        }
+class TestGetIssueForwarding:
+    @pytest.mark.parametrize(
+        "kwargs,comments,attachments",
+        [
+            ({}, True, True),
+            ({"include_comments": False}, False, True),
+            ({"include_attachments": False}, True, False),
+        ],
+        ids=["defaults", "no-comments", "no-attachments"],
+    )
+    async def test_forwards_normalized_key_and_flags(
+        self, mock_config, client_get_issue, kwargs, comments, attachments
+    ):
+        result = await get_issue(" one-123 ", **kwargs)
 
-        with patch(
-            "simple_jira_mcp.jira.client.JiraClient.get_issue",
-            new_callable=AsyncMock,
-        ) as mock_get:
-            mock_get.return_value = mock_response
-            result = await get_issue("ONE-123")
+        assert result == {"key": "ONE-123"}
+        client_get_issue.assert_awaited_once_with(
+            "ONE-123", include_comments=comments, include_attachments=attachments
+        )
 
-        assert result["key"] == "ONE-123"
-        assert result["summary"] == "Test issue"
-        assert result["status"] == "Done"
+    @pytest.mark.parametrize(
+        "code,message",
+        [
+            ("ISSUE_NOT_FOUND", "Issue not found"),
+            ("AUTH_FAILED", "Invalid credentials"),
+            ("RATE_LIMITED", "Too many requests"),
+        ],
+    )
+    async def test_client_errors_returned_unchanged(
+        self, mock_config, client_get_issue, code, message
+    ):
+        error = {"isError": True, "error": {"code": code, "message": message}}
+        client_get_issue.return_value = error
 
-    @pytest.mark.asyncio
-    async def test_get_issue_with_comments(self, mock_config):
-        mock_response = {
-            "key": "ONE-123",
-            "summary": "Test",
-            "comments": [
-                {"author": "John", "created": "2025-01-16", "body": "A comment"}
-            ],
-            "attachments": [],
-        }
-
-        with patch(
-            "simple_jira_mcp.jira.client.JiraClient.get_issue",
-            new_callable=AsyncMock,
-        ) as mock_get:
-            mock_get.return_value = mock_response
-            result = await get_issue("ONE-123", include_comments=True)
-
-        assert len(result["comments"]) == 1
-        assert result["comments"][0]["author"] == "John"
-
-    @pytest.mark.asyncio
-    async def test_get_issue_with_attachments(self, mock_config):
-        mock_response = {
-            "key": "ONE-123",
-            "summary": "Test",
-            "comments": [],
-            "attachments": [
-                {
-                    "id": "12345",
-                    "filename": "screenshot.png",
-                    "size_kb": 145.2,
-                    "mime_type": "image/png",
-                    "created": "2025-01-16",
-                }
-            ],
-        }
-
-        with patch(
-            "simple_jira_mcp.jira.client.JiraClient.get_issue",
-            new_callable=AsyncMock,
-        ) as mock_get:
-            mock_get.return_value = mock_response
-            result = await get_issue("ONE-123", include_attachments=True)
-
-        assert len(result["attachments"]) == 1
-        assert result["attachments"][0]["id"] == "12345"
-
-    @pytest.mark.asyncio
-    async def test_get_issue_exclude_comments(self, mock_config):
-        mock_response = {"key": "ONE-123", "summary": "Test", "attachments": []}
-
-        with patch(
-            "simple_jira_mcp.jira.client.JiraClient.get_issue",
-            new_callable=AsyncMock,
-        ) as mock_get:
-            mock_get.return_value = mock_response
-            await get_issue("ONE-123", include_comments=False)
-
-        mock_get.assert_called_once()
-        call_kwargs = mock_get.call_args.kwargs
-        assert call_kwargs["include_comments"] is False
-
-    @pytest.mark.asyncio
-    async def test_get_issue_exclude_attachments(self, mock_config):
-        mock_response = {"key": "ONE-123", "summary": "Test", "comments": []}
-
-        with patch(
-            "simple_jira_mcp.jira.client.JiraClient.get_issue",
-            new_callable=AsyncMock,
-        ) as mock_get:
-            mock_get.return_value = mock_response
-            await get_issue("ONE-123", include_attachments=False)
-
-        mock_get.assert_called_once()
-        call_kwargs = mock_get.call_args.kwargs
-        assert call_kwargs["include_attachments"] is False
-
-
-class TestGetIssueApiErrors:
-    @pytest.mark.asyncio
-    async def test_issue_not_found_error(self, mock_config):
-        error_response = {
-            "isError": True,
-            "error": {"code": "ISSUE_NOT_FOUND", "message": "Issue not found"},
-        }
-
-        with patch(
-            "simple_jira_mcp.jira.client.JiraClient.get_issue",
-            new_callable=AsyncMock,
-        ) as mock_get:
-            mock_get.return_value = error_response
-            result = await get_issue("ONE-999")
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "ISSUE_NOT_FOUND"
-
-    @pytest.mark.asyncio
-    async def test_auth_failed_error(self, mock_config):
-        error_response = {
-            "isError": True,
-            "error": {"code": "AUTH_FAILED", "message": "Invalid credentials"},
-        }
-
-        with patch(
-            "simple_jira_mcp.jira.client.JiraClient.get_issue",
-            new_callable=AsyncMock,
-        ) as mock_get:
-            mock_get.return_value = error_response
-            result = await get_issue("ONE-123")
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "AUTH_FAILED"
-
-    @pytest.mark.asyncio
-    async def test_rate_limited_error(self, mock_config):
-        error_response = {
-            "isError": True,
-            "error": {"code": "RATE_LIMITED", "message": "Too many requests"},
-        }
-
-        with patch(
-            "simple_jira_mcp.jira.client.JiraClient.get_issue",
-            new_callable=AsyncMock,
-        ) as mock_get:
-            mock_get.return_value = error_response
-            result = await get_issue("ONE-123")
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "RATE_LIMITED"
+        assert await get_issue("ONE-123") == error

@@ -73,67 +73,37 @@ async def test_get_issue_with_rejected_token_is_reported_as_not_found(client, re
     assert result["error"]["code"] == "ISSUE_NOT_FOUND"
 
 
-@pytest.mark.asyncio
-async def test_get_issue_rate_limited_error(client, patch_async_client):
-    """Test get_issue returns error when rate limited."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(429)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.get_issue("ONE-123")
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "RATE_LIMITED"
-
-
-@pytest.mark.asyncio
-async def test_get_issue_auth_failed_error(client, patch_async_client):
-    """Test get_issue returns error on authentication failure."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(401)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
+@pytest.mark.parametrize(
+    "status,code,message",
+    [
+        (401, "AUTH_FAILED", "Invalid credentials"),
+        (429, "RATE_LIMITED", "Too many requests to Jira API"),
+        (500, "JIRA_ERROR", "Jira API error: 500"),
+    ],
+    ids=["401", "429", "500"],
+)
+async def test_get_issue_bare_status_errors(
+    client, patch_async_client, status, code, message
+):
+    """Bare statuses a live site cannot be made to return on demand."""
+    patch_async_client(httpx.MockTransport(lambda _: httpx.Response(status)))
 
     result = await client.get_issue("ONE-123")
 
-    assert result["isError"] is True
-    assert result["error"]["code"] == "AUTH_FAILED"
+    assert result == {"isError": True, "error": {"code": code, "message": message}}
 
 
-@pytest.mark.asyncio
-async def test_get_issue_other_status_error(client, patch_async_client):
-    """Test get_issue returns error for server errors."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(500)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.get_issue("ONE-123")
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "JIRA_ERROR"
-    assert "500" in result["error"]["message"]
-
-
-@pytest.mark.asyncio
 async def test_get_issue_request_error(client, patch_async_client):
     """Test get_issue handles connection errors."""
 
     def handler(_: httpx.Request) -> httpx.Response:
         raise httpx.RequestError("Connection failed")
 
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
+    patch_async_client(httpx.MockTransport(handler))
 
     result = await client.get_issue("ONE-123")
 
-    assert result["isError"] is True
-    assert result["error"]["code"] == "JIRA_ERROR"
-    assert "Request failed" in result["error"]["message"]
+    assert result == {
+        "isError": True,
+        "error": {"code": "JIRA_ERROR", "message": "Request failed: Connection failed"},
+    }

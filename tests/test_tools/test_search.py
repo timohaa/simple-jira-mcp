@@ -7,21 +7,33 @@ from simple_jira_mcp.tools.search import search_issues
 
 
 class TestSearchValidation:
-    @pytest.mark.asyncio
-    async def test_empty_jql_returns_error(self, mock_config):
-        result = await search_issues("")
+    @pytest.mark.parametrize(
+        "jql,kwargs",
+        [
+            ("", {}),
+            ("   ", {}),
+            ('project = ONE; text ~ "keyword"', {}),
+            ("project = ONE", {"limit": 0}),
+            ("project = ONE", {"limit": 101}),
+            ("project = ONE", {"fields": ["summary", "unknown"]}),
+        ],
+        ids=[
+            "empty",
+            "whitespace",
+            "disallowed-char",
+            "limit-0",
+            "limit-101",
+            "unknown-field",
+        ],
+    )
+    async def test_invalid_input_returns_validation_error(
+        self, mock_config, jql, kwargs
+    ):
+        result = await search_issues(jql, **kwargs)
 
         assert result["isError"] is True
         assert result["error"]["code"] == "VALIDATION_ERROR"
 
-    @pytest.mark.asyncio
-    async def test_whitespace_jql_returns_error(self, mock_config):
-        result = await search_issues("   ")
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "VALIDATION_ERROR"
-
-    @pytest.mark.asyncio
     async def test_unbounded_query_returns_error(self, mock_config):
         result = await search_issues('text ~ "keyword"')
 
@@ -34,44 +46,15 @@ class TestSearchValidation:
             "reporter, resolved, status, type, updated"
         ) in message
 
-    @pytest.mark.asyncio
-    async def test_jql_with_disallowed_characters_returns_error(self, mock_config):
-        result = await search_issues('project = ONE; text ~ "keyword"')
+    @pytest.mark.parametrize(
+        "config_id,fixture_name",
+        [(None, "clean_config"), ("unknown", "mock_config")],
+        ids=["no-configs", "unknown-id"],
+    )
+    async def test_config_errors(self, request, config_id, fixture_name):
+        request.getfixturevalue(fixture_name)
 
-        assert result["isError"] is True
-        assert result["error"]["code"] == "VALIDATION_ERROR"
-
-    @pytest.mark.asyncio
-    async def test_invalid_limit_returns_error(self, mock_config):
-        result = await search_issues("project = ONE", limit=0)
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "VALIDATION_ERROR"
-
-    @pytest.mark.asyncio
-    async def test_limit_over_100_returns_error(self, mock_config):
-        result = await search_issues("project = ONE", limit=101)
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "VALIDATION_ERROR"
-
-    @pytest.mark.asyncio
-    async def test_invalid_field_returns_error(self, mock_config):
-        result = await search_issues("project = ONE", fields=["summary", "unknown"])
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "VALIDATION_ERROR"
-
-    @pytest.mark.asyncio
-    async def test_missing_config_returns_error(self, clean_config):
-        result = await search_issues("project = ONE")
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "CONFIG_NOT_FOUND"
-
-    @pytest.mark.asyncio
-    async def test_unknown_config_id_returns_error(self, mock_config):
-        result = await search_issues("project = ONE", config_id="unknown")
+        result = await search_issues("project = ONE", config_id=config_id)
 
         assert result["isError"] is True
         assert result["error"]["code"] == "CONFIG_NOT_FOUND"
@@ -128,21 +111,6 @@ class TestSearchIntegration:
         assert jira.sent(0)["fields"] == fields
         assert result["issues"][0]["reporter"] == "User 1"
 
-    @pytest.mark.asyncio
-    async def test_search_integration_auth_failed(
-        self, mock_config, patch_async_client
-    ):
-        async def handler(_: httpx.Request) -> httpx.Response:
-            return httpx.Response(401)
-
-        transport = httpx.MockTransport(handler)
-        patch_async_client(transport)
-
-        result = await search_issues("project = ONE")
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "AUTH_FAILED"
-
     async def test_search_integration_invalid_jql(self, mock_config, replay):
         replay("search_invalid_jql")
 
@@ -151,17 +119,16 @@ class TestSearchIntegration:
         assert result["isError"] is True
         assert result["error"]["code"] == "INVALID_JQL"
 
-    @pytest.mark.asyncio
-    async def test_search_integration_rate_limited(
-        self, mock_config, patch_async_client
+    @pytest.mark.parametrize(
+        "status,code", [(401, "AUTH_FAILED"), (429, "RATE_LIMITED")], ids=["401", "429"]
+    )
+    async def test_search_integration_bare_status_errors(
+        self, mock_config, patch_async_client, status, code
     ):
-        async def handler(_: httpx.Request) -> httpx.Response:
-            return httpx.Response(429)
-
-        transport = httpx.MockTransport(handler)
-        patch_async_client(transport)
+        """Bare statuses a live site cannot be made to return on demand."""
+        patch_async_client(httpx.MockTransport(lambda _: httpx.Response(status)))
 
         result = await search_issues("project = ONE")
 
         assert result["isError"] is True
-        assert result["error"]["code"] == "RATE_LIMITED"
+        assert result["error"]["code"] == code

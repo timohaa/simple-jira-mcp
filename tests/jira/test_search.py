@@ -96,101 +96,44 @@ async def test_search_returns_invalid_jql_error(client, replay):
     }
 
 
-@pytest.mark.asyncio
-async def test_search_auth_failed_error(client, patch_async_client):
-    """Test search returns error on authentication failure."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(401)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.search("project = ONE")
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "AUTH_FAILED"
-
-
-@pytest.mark.asyncio
-async def test_search_rate_limited_error(client, patch_async_client):
-    """Test search returns error when rate limited."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(429)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
+@pytest.mark.parametrize(
+    "response,code,message",
+    [
+        (httpx.Response(401), "AUTH_FAILED", "Invalid credentials"),
+        (httpx.Response(429), "RATE_LIMITED", "Too many requests to Jira API"),
+        (httpx.Response(500), "JIRA_ERROR", "Jira API error: 500"),
+        (httpx.Response(400, content=b"Not JSON"), "INVALID_JQL", "Invalid JQL query"),
+        (
+            httpx.Response(400, json={"errorMessages": []}),
+            "INVALID_JQL",
+            "Invalid JQL query",
+        ),
+    ],
+    ids=["401", "429", "500", "400-not-json", "400-no-messages"],
+)
+async def test_search_fault_responses(
+    client, patch_async_client, response, code, message
+):
+    """Statuses and bodies a live site cannot be made to return on demand."""
+    patch_async_client(httpx.MockTransport(lambda _: response))
 
     result = await client.search("project = ONE")
 
-    assert result["isError"] is True
-    assert result["error"]["code"] == "RATE_LIMITED"
+    assert result == {"isError": True, "error": {"code": code, "message": message}}
 
 
-@pytest.mark.asyncio
-async def test_search_other_status_error(client, patch_async_client):
-    """Test search returns error for server errors."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(500)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.search("project = ONE")
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "JIRA_ERROR"
-    assert "500" in result["error"]["message"]
-
-
-@pytest.mark.asyncio
-async def test_search_bad_request_non_json_response(client, patch_async_client):
-    """Test search handles non-JSON error responses."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(400, content=b"Not JSON")
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.search("project = ONE")
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "INVALID_JQL"
-    assert result["error"]["message"] == "Invalid JQL query"
-
-
-@pytest.mark.asyncio
-async def test_search_bad_request_empty_error_messages(client, patch_async_client):
-    """Test search handles empty error messages."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(400, json={"errorMessages": []})
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.search("project = ONE")
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "INVALID_JQL"
-    assert result["error"]["message"] == "Invalid JQL query"
-
-
-@pytest.mark.asyncio
 async def test_search_request_error(client, patch_async_client):
     """Test search handles connection errors."""
 
     def handler(_: httpx.Request) -> httpx.Response:
         raise httpx.RequestError("Connection failed")
 
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
+    patch_async_client(httpx.MockTransport(handler))
 
     result = await client.search("project = ONE")
 
     assert result["isError"] is True
-    assert result["error"]["code"] == "JIRA_ERROR"
-    assert "Request failed" in result["error"]["message"]
+    assert result["error"] == {
+        "code": "JIRA_ERROR",
+        "message": "Request failed: Connection failed",
+    }

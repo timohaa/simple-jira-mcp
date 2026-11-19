@@ -1,5 +1,7 @@
 """Tests for validation utilities."""
 
+import pytest
+
 from simple_jira_mcp.utils.validation import (
     has_disallowed_jql_chars,
     is_bounded_query,
@@ -12,194 +14,178 @@ from simple_jira_mcp.utils.validation import (
 )
 
 
-class TestValidateIssueKey:
-    def test_valid_simple(self):
-        assert validate_issue_key("ONE-123") is True
-
-    def test_valid_long_project(self):
-        assert validate_issue_key("PROJECT123-9999") is True
-
-    def test_valid_single_digit(self):
-        assert validate_issue_key("ABC-1") is True
-
-    def test_invalid_lowercase(self):
-        assert validate_issue_key("one-123") is False
-
-    def test_invalid_no_dash(self):
-        assert validate_issue_key("ONE123") is False
-
-    def test_invalid_no_number(self):
-        assert validate_issue_key("ONE-") is False
-
-    def test_invalid_empty(self):
-        assert validate_issue_key("") is False
-
-    def test_invalid_spaces(self):
-        assert validate_issue_key("ONE - 123") is False
-
-    def test_invalid_leading_number(self):
-        assert validate_issue_key("1ONE-123") is False
-
-
-class TestValidateProjectKey:
-    def test_valid_simple(self):
-        assert validate_project_key("ONE") is True
-
-    def test_valid_with_numbers(self):
-        assert validate_project_key("PROJECT123") is True
-
-    def test_invalid_lowercase(self):
-        assert validate_project_key("one") is False
-
-    def test_invalid_with_dash(self):
-        assert validate_project_key("ONE-TWO") is False
-
-    def test_invalid_empty(self):
-        assert validate_project_key("") is False
-
-    def test_invalid_leading_number(self):
-        assert validate_project_key("1ONE") is False
-
-    def test_invalid_single_letter(self):
-        assert validate_project_key("A") is False
+@pytest.mark.parametrize(
+    "key,valid",
+    [
+        ("ONE-123", True),
+        ("PROJECT123-9999", True),
+        ("ABC-1", True),
+        ("one-123", False),
+        ("ONE123", False),
+        ("ONE-", False),
+        ("", False),
+        ("ONE - 123", False),
+        ("1ONE-123", False),
+    ],
+    ids=[
+        "simple",
+        "long-project",
+        "single-digit",
+        "lowercase",
+        "no-dash",
+        "no-number",
+        "empty",
+        "spaces",
+        "leading-number",
+    ],
+)
+def test_validate_issue_key(key, valid):
+    assert validate_issue_key(key) is valid
 
 
-class TestValidateAttachmentId:
-    def test_valid_numeric(self):
-        assert validate_attachment_id("12345") is True
-
-    def test_valid_single_digit(self):
-        assert validate_attachment_id("1") is True
-
-    def test_invalid_with_letters(self):
-        assert validate_attachment_id("abc123") is False
-
-    def test_invalid_empty(self):
-        assert validate_attachment_id("") is False
-
-    def test_invalid_negative(self):
-        assert validate_attachment_id("-123") is False
-
-
-class TestValidateLimit:
-    def test_valid_min(self):
-        assert validate_limit(1) is True
-
-    def test_valid_max(self):
-        assert validate_limit(100) is True
-
-    def test_valid_middle(self):
-        assert validate_limit(50) is True
-
-    def test_invalid_zero(self):
-        assert validate_limit(0) is False
-
-    def test_invalid_negative(self):
-        assert validate_limit(-1) is False
-
-    def test_invalid_too_large(self):
-        assert validate_limit(101) is False
+@pytest.mark.parametrize(
+    "key,valid",
+    [
+        ("ONE", True),
+        ("PROJECT123", True),
+        ("one", False),
+        ("ONE-TWO", False),
+        ("", False),
+        ("1ONE", False),
+        ("A", False),
+    ],
+    ids=[
+        "simple",
+        "with-numbers",
+        "lowercase",
+        "with-dash",
+        "empty",
+        "leading-number",
+        "single-letter",
+    ],
+)
+def test_validate_project_key(key, valid):
+    assert validate_project_key(key) is valid
 
 
-class TestIsBoundedQuery:
-    def test_bounded_with_project(self):
-        assert is_bounded_query("project = ONE") is True
+@pytest.mark.parametrize(
+    "attachment_id,valid",
+    [("12345", True), ("1", True), ("abc123", False), ("", False), ("-123", False)],
+    ids=["numeric", "single-digit", "letters", "empty", "negative"],
+)
+def test_validate_attachment_id(attachment_id, valid):
+    assert validate_attachment_id(attachment_id) is valid
 
-    def test_bounded_with_assignee(self):
-        assert is_bounded_query("assignee = currentUser()") is True
 
-    def test_bounded_with_updated(self):
-        assert is_bounded_query('updated >= "2025-01-01"') is True
+@pytest.mark.parametrize(
+    "limit,valid",
+    [(1, True), (100, True), (50, True), (0, False), (-1, False), (101, False)],
+    ids=["min", "max", "middle", "zero", "negative", "too-large"],
+)
+def test_validate_limit(limit, valid):
+    assert validate_limit(limit) is valid
 
-    def test_bounded_with_status(self):
-        assert is_bounded_query('status = "Done"') is True
 
-    def test_bounded_complex(self):
-        jql = 'project = ONE AND updated >= "2025-01-01" AND assignee = currentUser()'
-        assert is_bounded_query(jql) is True
-
-    def test_unbounded_text_only(self):
-        assert is_bounded_query('text ~ "keyword"') is False
-
-    def test_unbounded_empty(self):
-        assert is_bounded_query("") is False
-
-    def test_case_insensitive(self):
-        assert is_bounded_query("PROJECT = ONE") is True
-
-    def test_unbounded_order_by_only(self):
-        assert is_bounded_query('text ~ "foo" ORDER BY created') is False
-
-    def test_unbounded_keyword_in_quotes(self):
-        assert is_bounded_query('text ~ "project status"') is False
-
-    def test_bounded_with_order_by(self):
-        assert is_bounded_query("project = ONE ORDER BY created DESC") is True
-
-    def test_bounded_with_quoted_reserved_word_project(self):
+@pytest.mark.parametrize(
+    "jql,bounded",
+    [
+        ("project = ONE", True),
+        ("assignee = currentUser()", True),
+        ('updated >= "2025-01-01"', True),
+        ('status = "Done"', True),
+        (
+            'project = ONE AND updated >= "2025-01-01" AND assignee = currentUser()',
+            True,
+        ),
+        ('text ~ "keyword"', False),
+        ("", False),
+        ("PROJECT = ONE", True),
+        ('text ~ "foo" ORDER BY created', False),
+        ('text ~ "project status"', False),
+        ("project = ONE ORDER BY created DESC", True),
         # Reserved-word keys such as ON must be quoted for Jira's parser;
         # stripping the quoted value must not hide the project clause.
-        assert is_bounded_query('project = "ON"') is True
-
-    def test_bounded_without_project_scope(self):
+        ('project = "ON"', True),
         # A bounding clause need not scope to a project.
-        assert is_bounded_query('status = "Done" AND updated >= "2025-01-01"') is True
+        ('status = "Done" AND updated >= "2025-01-01"', True),
+    ],
+    ids=[
+        "project",
+        "assignee",
+        "updated",
+        "status",
+        "complex",
+        "text-only",
+        "empty",
+        "case-insensitive",
+        "order-by-only",
+        "keyword-in-quotes",
+        "with-order-by",
+        "quoted-reserved-project",
+        "without-project-scope",
+    ],
+)
+def test_is_bounded_query(jql, bounded):
+    assert is_bounded_query(jql) is bounded
 
 
-class TestJqlSafety:
-    def test_disallows_semicolon(self):
-        assert has_disallowed_jql_chars("project = ONE; delete") is True
+@pytest.mark.parametrize(
+    "jql,disallowed",
+    [
+        ("project = ONE; delete", True),
+        ('project = ONE\ntext ~ "abc"', True),
+        ('project = ONE AND text ~ "abc"', False),
+    ],
+    ids=["semicolon", "newline", "clean"],
+)
+def test_has_disallowed_jql_chars(jql, disallowed):
+    assert has_disallowed_jql_chars(jql) is disallowed
 
-    def test_disallows_newline(self):
-        assert has_disallowed_jql_chars('project = ONE\ntext ~ "abc"') is True
 
-    def test_allows_clean_query(self):
-        assert has_disallowed_jql_chars('project = ONE AND text ~ "abc"') is False
-
-
-class TestValidateSearchFields:
-    def test_allows_allowed_fields(self):
-        valid, invalid = validate_search_fields(["summary", "status", "labels"])
-        assert valid is True
-        assert invalid is None
-
-    def test_rejects_unknown_field(self):
-        valid, invalid = validate_search_fields(["summary", "hack"])
-        assert valid is False
-        assert invalid == "hack"
-
-    def test_rejects_key(self):
+@pytest.mark.parametrize(
+    "fields,result",
+    [
+        (["summary", "status", "labels"], (True, None)),
+        (["summary", "hack"], (False, "hack")),
         # key is always returned, so selecting it is not meaningful
-        valid, invalid = validate_search_fields(["key"])
-        assert valid is False
-        assert invalid == "key"
+        (["key"], (False, "key")),
+    ],
+    ids=["allowed", "unknown", "key"],
+)
+def test_validate_search_fields(fields, result):
+    assert validate_search_fields(fields) == result
 
 
-class TestSanitizeFilename:
-    def test_normal_filename(self):
-        assert sanitize_filename("document.pdf") == "document.pdf"
-
-    def test_removes_path_separators(self):
-        assert sanitize_filename("../../../etc/passwd") == "passwd"
-        assert sanitize_filename("folder/file.txt") == "file.txt"
-        assert sanitize_filename("C:\\Windows\\file.txt") == "file.txt"
-
-    def test_removes_special_chars(self):
-        assert sanitize_filename('file<>:"|?*.txt') == "file_______.txt"
-
-    def test_handles_null_bytes(self):
-        assert sanitize_filename("file\x00.txt") == "file_.txt"
-
-    def test_empty_returns_attachment(self):
-        assert sanitize_filename("") == "attachment"
-
-    def test_only_special_chars(self):
-        assert sanitize_filename("///") == "attachment"
-
-    def test_dot_only_names_rejected(self):
-        assert sanitize_filename(".") == "attachment"
-        assert sanitize_filename("..") == "attachment"
-        assert sanitize_filename("...") == "attachment"
-
-    def test_hidden_file_preserved(self):
-        assert sanitize_filename(".gitignore") == ".gitignore"
+@pytest.mark.parametrize(
+    "filename,sanitized",
+    [
+        ("document.pdf", "document.pdf"),
+        ("../../../etc/passwd", "passwd"),
+        ("folder/file.txt", "file.txt"),
+        ("C:\\Windows\\file.txt", "file.txt"),
+        ('file<>:"|?*.txt', "file_______.txt"),
+        ("file\x00.txt", "file_.txt"),
+        ("", "attachment"),
+        ("///", "attachment"),
+        (".", "attachment"),
+        ("..", "attachment"),
+        ("...", "attachment"),
+        (".gitignore", ".gitignore"),
+    ],
+    ids=[
+        "normal",
+        "parent-traversal",
+        "posix-dir",
+        "windows-dir",
+        "special-chars",
+        "null-byte",
+        "empty",
+        "only-separators",
+        "dot",
+        "dot-dot",
+        "dot-dot-dot",
+        "hidden-file",
+    ],
+)
+def test_sanitize_filename(filename, sanitized):
+    assert sanitize_filename(filename) == sanitized

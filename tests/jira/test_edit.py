@@ -9,16 +9,9 @@ from simple_jira_mcp.jira.client import UpdateIssueParams
 
 
 @pytest.fixture
-def requests(patch_async_client):
-    """Record requests and answer each with 204 No Content."""
-    seen = []
-
-    def handler(request):
-        seen.append(request)
-        return httpx.Response(204)
-
-    patch_async_client(httpx.MockTransport(handler))
-    return seen
+def requests(replay):
+    """Replay a recorded update of ONE-1 and return the requests sent."""
+    return replay("update_issue").requests
 
 
 async def test_update_issue_payload_and_result(client, requests):
@@ -30,11 +23,11 @@ async def test_update_issue_payload_and_result(client, requests):
         assignee_account_id="acc-1",
         fields={"duedate": None, "customfield_10001": "x"},
     )
-    result = await client.update_issue("ONE-123", params)
+    result = await client.update_issue("ONE-1", params)
 
     assert len(requests) == 1
     assert requests[0].method == "PUT"
-    assert requests[0].url.path == "/rest/api/3/issue/ONE-123"
+    assert requests[0].url.path == "/rest/api/3/issue/ONE-1"
     assert requests[0].headers["authorization"].startswith("Basic ")
     assert json.loads(requests[0].content) == {
         "fields": {
@@ -61,8 +54,8 @@ async def test_update_issue_payload_and_result(client, requests):
         }
     }
     assert result == {
-        "key": "ONE-123",
-        "url": "https://example.atlassian.net/browse/ONE-123",
+        "key": "ONE-1",
+        "url": "https://example.atlassian.net/browse/ONE-1",
         "updated": [
             "assignee",
             "customfield_10001",
@@ -76,7 +69,7 @@ async def test_update_issue_payload_and_result(client, requests):
 
 
 async def test_update_issue_sends_only_given_fields(client, requests):
-    result = await client.update_issue("ONE-123", UpdateIssueParams(summary="Title"))
+    result = await client.update_issue("ONE-1", UpdateIssueParams(summary="Title"))
 
     assert json.loads(requests[0].content) == {"fields": {"summary": "Title"}}
     assert result["updated"] == ["summary"]
@@ -84,7 +77,7 @@ async def test_update_issue_sends_only_given_fields(client, requests):
 
 async def test_update_issue_clears_field_with_null(client, requests):
     params = UpdateIssueParams(fields={"assignee": None})
-    result = await client.update_issue("ONE-123", params)
+    result = await client.update_issue("ONE-1", params)
 
     assert json.loads(requests[0].content) == {"fields": {"assignee": None}}
     assert result["updated"] == ["assignee"]
@@ -106,16 +99,10 @@ async def test_update_issue_clears_field_with_null(client, requests):
     ],
 )
 async def test_update_issue_rejects_without_request(client, requests, params, message):
-    result = await client.update_issue("ONE-123", params)
+    result = await client.update_issue("ONE-1", params)
 
     assert result["error"] == {"code": "VALIDATION_ERROR", "message": message}
     assert requests == []
-
-
-PRIORITY_REJECTED = httpx.Response(
-    400,
-    json={"errors": {"priority": "Specify the Priority (name) in the string format"}},
-)
 
 
 EDITMETA_URL = "https://example.atlassian.net/rest/api/3/issue/ONE-1/editmeta"
@@ -146,27 +133,35 @@ async def test_update_issue_unknown_priority(client, replay, faults, message):
     assert result["error"] == {"code": "INVALID_PRIORITY", "message": message}
 
 
-async def test_update_issue_raw_priority_error_passes_through(
-    client, patch_async_client
-):
-    patch_async_client(httpx.MockTransport(lambda _: PRIORITY_REJECTED))
+async def test_update_issue_raw_priority_error_passes_through(client, replay):
+    """A priority sent through fields gets Jira's message, with no editmeta lookup."""
+    jira = replay("update_invalid_priority")
+
     params = UpdateIssueParams(fields={"priority": {"id": "99"}})
-    result = await client.update_issue("ONE-123", params)
+    result = await client.update_issue("ONE-1", params)
 
-    assert result["error"]["code"] == "VALIDATION_ERROR"
-    assert result["error"]["message"].startswith("priority: ")
+    assert len(jira.requests) == 1
+    assert result["error"] == {
+        "code": "VALIDATION_ERROR",
+        "message": "priority: Specify the Priority (name) in the string format",
+    }
 
 
-@pytest.mark.parametrize("delete_subtasks,expected", [(False, "false"), (True, "true")])
-async def test_delete_issue_request_and_result(
-    client, requests, delete_subtasks, expected
-):
-    result = await client.delete_issue("ONE-123", delete_subtasks=delete_subtasks)
+async def test_delete_issue_with_subtasks_sends_flag(client, patch_async_client):
+    """The recording deletes without subtasks; this pins the true flag."""
+    sent = []
 
-    assert len(requests) == 1
-    assert requests[0].method == "DELETE"
-    assert requests[0].url.path == "/rest/api/3/issue/ONE-123"
-    assert dict(requests[0].url.params) == {"deleteSubtasks": expected}
+    def handler(request):
+        sent.append(request)
+        return httpx.Response(204)
+
+    patch_async_client(httpx.MockTransport(handler))
+    result = await client.delete_issue("ONE-123", delete_subtasks=True)
+
+    assert len(sent) == 1
+    assert sent[0].method == "DELETE"
+    assert sent[0].url.path == "/rest/api/3/issue/ONE-123"
+    assert dict(sent[0].url.params) == {"deleteSubtasks": "true"}
     assert result == {"key": "ONE-123", "deleted": True}
 
 
@@ -244,6 +239,7 @@ async def test_delete_issue_on_recorded_site(client, replay):
     result = await client.delete_issue("ONE-3")
 
     assert jira.requests[0].method == "DELETE"
+    assert dict(jira.requests[0].url.params) == {"deleteSubtasks": "false"}
     assert result == {"key": "ONE-3", "deleted": True}
 
 

@@ -1,6 +1,5 @@
 """Tests for download_attachment tool with mocked Jira API."""
 
-import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -10,14 +9,12 @@ from simple_jira_mcp.tools.attachment import download_attachment
 
 
 @pytest.fixture
-def temp_dir():
-    """Create a temporary directory for downloads."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield tmpdir
+def temp_dir(tmp_path):
+    """Return pytest's temporary directory as the string the tool accepts."""
+    return str(tmp_path)
 
 
 class TestDownloadAttachmentValidation:
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "issue_key,attachment_id,msg_snippet",
         [
@@ -35,7 +32,6 @@ class TestDownloadAttachmentValidation:
         assert result["error"]["code"] == "VALIDATION_ERROR"
         assert msg_snippet in result["error"]["message"].lower()
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "attachment_id,msg_snippet",
         [
@@ -52,7 +48,6 @@ class TestDownloadAttachmentValidation:
         assert result["error"]["code"] == "VALIDATION_ERROR"
         assert msg_snippet in result["error"]["message"].lower()
 
-    @pytest.mark.asyncio
     async def test_nonexistent_output_dir_returns_error(self, mock_config):
         result = await download_attachment(
             "ONE-123", "12345", output_dir="/nonexistent/path"
@@ -62,7 +57,6 @@ class TestDownloadAttachmentValidation:
         assert result["error"]["code"] == "VALIDATION_ERROR"
         assert "not exist" in result["error"]["message"].lower()
 
-    @pytest.mark.asyncio
     async def test_output_dir_is_file_returns_error(self, mock_config, temp_dir):
         file_path = Path(temp_dir) / "not_a_dir.txt"
         file_path.write_text("test")
@@ -75,14 +69,12 @@ class TestDownloadAttachmentValidation:
         assert result["error"]["code"] == "VALIDATION_ERROR"
         assert "not a directory" in result["error"]["message"].lower()
 
-    @pytest.mark.asyncio
     async def test_missing_config_returns_error(self, clean_config):
         result = await download_attachment("ONE-123", "12345")
 
         assert result["isError"] is True
         assert result["error"]["code"] == "CONFIG_NOT_FOUND"
 
-    @pytest.mark.asyncio
     async def test_unknown_config_id_returns_error(self, mock_config):
         result = await download_attachment("ONE-123", "12345", config_id="unknown")
 
@@ -91,32 +83,23 @@ class TestDownloadAttachmentValidation:
 
 
 class TestDownloadAttachmentSuccess:
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "issue_key,output_dir_key,filename",
+        "issue_key,use_temp_dir,filename",
         [
-            ("ONE-123", "temp_dir", "screenshot.png"),
-            ("one-123", "temp_dir", "file.txt"),
-            ("ONE-123", None, "file.txt"),
+            ("ONE-123", True, "screenshot.png"),
+            ("one-123", True, "file.txt"),
+            ("ONE-123", False, "file.txt"),
         ],
+        ids=["explicit-dir", "lowercase-key", "default-cwd"],
     )
     async def test_download_success(
-        self, mock_config, temp_dir, issue_key, output_dir_key, filename
+        self, mock_config, temp_dir, issue_key, use_temp_dir, filename
     ):
         issue_response = {
             "key": "ONE-123",
-            "attachments": [
-                {"id": "12345", "filename": filename},
-            ],
+            "attachments": [{"id": "12345", "filename": filename}],
         }
-        base_dir = temp_dir if output_dir_key == "temp_dir" else Path.cwd()
-        download_response = {
-            "success": True,
-            "filename": filename,
-            "path": f"{base_dir}/ONE-123/{filename}",
-            "size_kb": 1.0,
-            "mime_type": "text/plain",
-        }
+        download_response = {"success": True, "filename": filename}
 
         with (
             patch(
@@ -130,15 +113,18 @@ class TestDownloadAttachmentSuccess:
         ):
             mock_get.return_value = issue_response
             mock_download.return_value = download_response
-            out_dir = None if output_dir_key is None else temp_dir
+            out_dir = temp_dir if use_temp_dir else None
             result = await download_attachment(issue_key, "12345", output_dir=out_dir)
 
-        assert result["success"] is True
-        assert result["filename"] == filename
-        mock_get.assert_called_once()
-        assert mock_get.call_args.args[0] == "ONE-123"
+        assert result == download_response
+        mock_get.assert_awaited_once_with(
+            "ONE-123", include_comments=False, include_attachments=True
+        )
+        expected_dir = Path(temp_dir) if use_temp_dir else Path.cwd()
+        mock_download.assert_awaited_once_with(
+            "12345", expected_dir, "ONE-123", filename
+        )
 
-    @pytest.mark.asyncio
     async def test_none_filename_falls_back_to_default(self, mock_config, temp_dir):
         issue_response = {
             "key": "ONE-123",
@@ -166,7 +152,6 @@ class TestDownloadAttachmentSuccess:
 
 
 class TestDownloadAttachmentApiErrors:
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "issue_response,expected_code",
         [
@@ -175,6 +160,13 @@ class TestDownloadAttachmentApiErrors:
                 "ISSUE_NOT_FOUND",
             ),
             ({"isError": True, "error": {"code": "AUTH_FAILED"}}, "AUTH_FAILED"),
+            (
+                {
+                    "isError": True,
+                    "error": {"code": "RATE_LIMITED", "message": "Too many requests"},
+                },
+                "RATE_LIMITED",
+            ),
         ],
     )
     async def test_issue_fetch_errors(
@@ -187,10 +179,9 @@ class TestDownloadAttachmentApiErrors:
             mock_get.return_value = issue_response
             result = await download_attachment("ONE-123", "12345", output_dir=temp_dir)
 
-        assert result["isError"] is True
+        assert result == issue_response
         assert result["error"]["code"] == expected_code
 
-    @pytest.mark.asyncio
     async def test_attachment_not_found_on_issue(self, mock_config, temp_dir):
         issue_response = {
             "key": "ONE-123",
@@ -209,7 +200,6 @@ class TestDownloadAttachmentApiErrors:
         assert result["isError"] is True
         assert result["error"]["code"] == "ATTACHMENT_NOT_FOUND"
 
-    @pytest.mark.asyncio
     async def test_download_failed_error(self, mock_config, temp_dir):
         issue_response = {
             "key": "ONE-123",
@@ -238,20 +228,3 @@ class TestDownloadAttachmentApiErrors:
 
         assert result["isError"] is True
         assert result["error"]["code"] == "DOWNLOAD_FAILED"
-
-    @pytest.mark.asyncio
-    async def test_rate_limited_error(self, mock_config, temp_dir):
-        error_response = {
-            "isError": True,
-            "error": {"code": "RATE_LIMITED", "message": "Too many requests"},
-        }
-
-        with patch(
-            "simple_jira_mcp.jira.client.JiraClient.get_issue",
-            new_callable=AsyncMock,
-        ) as mock_get:
-            mock_get.return_value = error_response
-            result = await download_attachment("ONE-123", "12345", output_dir=temp_dir)
-
-        assert result["isError"] is True
-        assert result["error"]["code"] == "RATE_LIMITED"

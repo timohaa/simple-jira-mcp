@@ -22,23 +22,18 @@ class TestLoadConfigsTimeout:
             item["timeout"] = timeout
         os.environ["JIRA_CONFIG_JSON"] = json.dumps([item])
 
-    def test_defaults_when_omitted(self, clean_config):
-        self._set_env()
+    @pytest.mark.parametrize(
+        "timeout,expected",
+        [(None, 30.0), (90, 90.0), (5, 5.0)],
+        ids=["omitted", "explicit", "int"],
+    )
+    def test_loads_timeout_as_float(self, clean_config, timeout, expected):
+        self._set_env(timeout=timeout)
 
-        assert load_configs()[0].timeout == 30.0
+        loaded = load_configs()[0].timeout
 
-    def test_honours_explicit_value(self, clean_config):
-        self._set_env(timeout=90)
-
-        assert load_configs()[0].timeout == 90.0
-
-    def test_coerces_int_to_float(self, clean_config):
-        self._set_env(timeout=5)
-
-        timeout = load_configs()[0].timeout
-
-        assert isinstance(timeout, float)
-        assert timeout == 5.0
+        assert isinstance(loaded, float)
+        assert loaded == expected
 
     def test_is_per_config(self, clean_config):
         config_data = [
@@ -63,20 +58,19 @@ class TestLoadConfigsTimeout:
         assert configs[0].timeout == 5.0
         assert configs[1].timeout == 30.0
 
-    def test_raises_on_string(self, clean_config):
-        self._set_env(timeout="30")
-
-        with pytest.raises(ValueError, match="must be a number"):
-            load_configs()
-
-    def test_raises_on_bool(self, clean_config):
-        self._set_env(timeout=True)
-
-        with pytest.raises(ValueError, match="must be a number"):
-            load_configs()
-
-    def test_raises_on_null(self, clean_config):
-        # Reject an explicit `"timeout": null` value.
+    @pytest.mark.parametrize(
+        "item,match",
+        [
+            ({"timeout": "30"}, "must be a number"),
+            ({"timeout": True}, "must be a number"),
+            # Reject an explicit `"timeout": null` value.
+            ({"timeout": None}, "must be a number"),
+            ({"timeout": 0}, "must be positive"),
+            ({"timeout": -1}, "must be positive"),
+        ],
+        ids=["string", "bool", "null", "zero", "negative"],
+    )
+    def test_rejects_invalid_timeout(self, clean_config, item, match):
         os.environ["JIRA_CONFIG_JSON"] = json.dumps(
             [
                 {
@@ -84,24 +78,12 @@ class TestLoadConfigsTimeout:
                     "url": "https://test.atlassian.net",
                     "email": "test@example.com",
                     "token": "test-token",
-                    "timeout": None,
+                    **item,
                 }
             ]
         )
 
-        with pytest.raises(ValueError, match="must be a number"):
-            load_configs()
-
-    def test_raises_on_zero(self, clean_config):
-        self._set_env(timeout=0)
-
-        with pytest.raises(ValueError, match="must be positive"):
-            load_configs()
-
-    def test_raises_on_negative(self, clean_config):
-        self._set_env(timeout=-1)
-
-        with pytest.raises(ValueError, match="must be positive"):
+        with pytest.raises(ValueError, match=match):
             load_configs()
 
     def test_error_names_the_config(self, clean_config):

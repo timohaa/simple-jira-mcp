@@ -7,6 +7,7 @@ import pytest
 
 
 async def test_get_transitions(client, patch_async_client, workflow_transitions):
+    """The sandbox has no transition screens, so their field metadata is built here."""
     requests = []
 
     def handler(request):
@@ -38,6 +39,7 @@ async def test_get_transitions(client, patch_async_client, workflow_transitions)
 async def test_transition_payload_and_result(
     client, patch_async_client, workflow_transitions, transition
 ):
+    """The sandbox has no transition screens, so screen fields are built here."""
     requests = []
     completion = "2026-10-01T12:34:56.000+0000"
 
@@ -115,77 +117,10 @@ async def test_transition_payload_and_result(
     }
 
 
-async def test_transition_without_optional_fields(client, patch_async_client):
-    requests = []
-
-    def handler(request):
-        requests.append(request)
-        if request.method == "POST":
-            return httpx.Response(204)
-        if request.url.path.endswith("/transitions"):
-            return httpx.Response(
-                200,
-                json={
-                    "transitions": [
-                        {
-                            "id": "11",
-                            "name": "Start work",
-                            "to": {"name": "In Progress"},
-                        }
-                    ]
-                },
-            )
-        return httpx.Response(200, json={"fields": {"status": {"name": "In Progress"}}})
-
-    patch_async_client(httpx.MockTransport(handler))
-    result = await client.transition_issue("ONE-123", "11")
-
-    assert json.loads(requests[1].content) == {"transition": {"id": "11"}}
-    assert result["status"] == "In Progress"
-    assert result["resolution"] is None
-    assert result["resolutiondate"] is None
-
-
-async def test_transition_without_comment_field_posts_comment_separately(
-    client, patch_async_client, workflow_transitions
-):
-    requests = []
-
-    def handler(request):
-        requests.append(request)
-        if request.url.path.endswith("/comment"):
-            return httpx.Response(201, json={"id": "1", "created": "now"})
-        if request.method == "POST":
-            return httpx.Response(204)
-        if request.url.path.endswith("/transitions"):
-            return httpx.Response(200, json={"transitions": workflow_transitions})
-        return httpx.Response(200, json={"fields": {"status": {"name": "In Progress"}}})
-
-    patch_async_client(httpx.MockTransport(handler))
-    result = await client.transition_issue("ONE-123", "11", comment="Started")
-
-    assert [(request.method, request.url.path) for request in requests] == [
-        ("GET", "/rest/api/3/issue/ONE-123/transitions"),
-        ("POST", "/rest/api/3/issue/ONE-123/transitions"),
-        ("POST", "/rest/api/3/issue/ONE-123/comment"),
-        ("GET", "/rest/api/3/issue/ONE-123"),
-    ]
-    assert json.loads(requests[1].content) == {"transition": {"id": "11"}}
-    assert json.loads(requests[2].content) == {
-        "body": {
-            "type": "doc",
-            "version": 1,
-            "content": [
-                {"type": "paragraph", "content": [{"type": "text", "text": "Started"}]}
-            ],
-        }
-    }
-    assert result["status"] == "In Progress"
-
-
 async def test_separate_comment_failure_after_transition(
     client, patch_async_client, workflow_transitions
 ):
+    """A 403 on the comment after a successful transition is a built fault."""
     requests = []
 
     def handler(request):
@@ -207,6 +142,7 @@ async def test_separate_comment_failure_after_transition(
 
 
 async def test_transition_id_takes_precedence(client, patch_async_client):
+    """The sandbox has no transition named like another's ID, so one is built."""
     posted = []
 
     def handler(request):
@@ -244,6 +180,7 @@ async def test_transition_id_takes_precedence(client, patch_async_client):
 async def test_transition_selection_errors(
     client, patch_async_client, options, transition, reason
 ):
+    """The sandbox has no empty or ambiguous transition lists, so they are built."""
     requests = []
 
     def handler(request):

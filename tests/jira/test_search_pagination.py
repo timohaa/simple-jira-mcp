@@ -1,7 +1,6 @@
 """Tests for JiraClient search pagination state."""
 
 import httpx
-import pytest
 
 
 async def test_search_follows_next_page_token(client, replay):
@@ -23,7 +22,6 @@ async def test_search_follows_next_page_token(client, replay):
     assert second["is_last"] is False
 
 
-@pytest.mark.asyncio
 async def test_search_derives_is_last_from_token_when_absent(
     client, patch_async_client
 ):
@@ -42,7 +40,6 @@ async def test_search_derives_is_last_from_token_when_absent(
     assert result["next_page_token"] == "token_page_2"
 
 
-@pytest.mark.asyncio
 async def test_search_is_last_when_no_token_and_no_flag(client, patch_async_client):
     """Test a response with neither isLast nor a token ends pagination."""
 

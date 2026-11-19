@@ -1,5 +1,7 @@
 """Tests for workflow transitions replayed from recorded Jira exchanges."""
 
+import pytest
+
 RECORDED_TRANSITIONS = [
     {"id": "11", "name": "To Do", "status": "To Do", "fields": {}},
     {"id": "21", "name": "In Progress", "status": "In Progress", "fields": {}},
@@ -19,10 +21,11 @@ async def test_get_transitions_from_recorded_site(client, replay):
     assert result == {"transitions": RECORDED_TRANSITIONS}
 
 
-async def test_transition_by_name_on_recorded_site(client, replay):
+@pytest.mark.parametrize("transition", ["to do", "11"], ids=["by-name", "by-id"])
+async def test_transition_on_recorded_site(client, replay, transition):
     jira = replay("transition_issue")
 
-    result = await client.transition_issue("ONE-1", "to do")
+    result = await client.transition_issue("ONE-1", transition)
 
     assert [request.method for request in jira.requests] == ["GET", "POST", "GET"]
     assert jira.sent(1) == {"transition": {"id": "11"}}

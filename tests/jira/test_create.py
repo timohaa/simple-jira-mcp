@@ -87,54 +87,6 @@ async def test_create_issue_unknown_project_is_validation_error(client, replay):
     }
 
 
-@pytest.mark.asyncio
-async def test_create_issue_project_not_found_error(client, patch_async_client):
-    """Test create_issue returns error when project not found."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(404)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.create_issue(replace(PARAMS, project_key="MISSING"))
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "PROJECT_NOT_FOUND"
-
-
-@pytest.mark.asyncio
-async def test_create_issue_auth_failed_error(client, patch_async_client):
-    """Test create_issue returns error on authentication failure."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(401)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.create_issue(PARAMS)
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "AUTH_FAILED"
-
-
-@pytest.mark.asyncio
-async def test_create_issue_rate_limited_error(client, patch_async_client):
-    """Test create_issue returns error when rate limited."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(429)
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.create_issue(PARAMS)
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "RATE_LIMITED"
-
-
 async def test_create_issue_invalid_issue_type_error(client, replay):
     """Test create_issue maps invalid issue type errors."""
     replay("create_invalid_issue_type")
@@ -218,81 +170,61 @@ async def test_create_issue_priority_error_without_priority(client, patch_async_
     }
 
 
-@pytest.mark.asyncio
-async def test_create_issue_with_errors_field(client, patch_async_client):
-    """Test create_issue handles errors field in response."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(400, json={"errors": {"summary": "Summary is required"}})
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.create_issue(PARAMS)
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "VALIDATION_ERROR"
-
-
-@pytest.mark.asyncio
-async def test_create_issue_with_error_messages(client, patch_async_client):
-    """Test create_issue handles errorMessages in response."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(400, json={"errorMessages": ["Field error"]})
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.create_issue(PARAMS)
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "VALIDATION_ERROR"
-
-
-@pytest.mark.asyncio
-async def test_create_issue_with_empty_error_response(client, patch_async_client):
-    """Test create_issue handles empty error response."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(400, json={})
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
+@pytest.mark.parametrize(
+    "response,code,message",
+    [
+        (httpx.Response(401), "AUTH_FAILED", "Invalid credentials"),
+        (httpx.Response(404), "PROJECT_NOT_FOUND", "Project not found"),
+        (httpx.Response(429), "RATE_LIMITED", "Too many requests to Jira API"),
+        (
+            httpx.Response(400, json={"errors": {"summary": "Summary is required"}}),
+            "VALIDATION_ERROR",
+            "summary: Summary is required",
+        ),
+        (
+            httpx.Response(400, json={"errorMessages": ["Field error"]}),
+            "VALIDATION_ERROR",
+            "Field error",
+        ),
+        (httpx.Response(400, json={}), "JIRA_ERROR", "Jira API error: 400"),
+        (
+            httpx.Response(500, content=b"Internal Server Error"),
+            "JIRA_ERROR",
+            "Jira API error: 500",
+        ),
+    ],
+    ids=[
+        "401",
+        "404",
+        "429",
+        "400-field-errors",
+        "400-error-messages",
+        "400-empty-body",
+        "500-not-json",
+    ],
+)
+async def test_create_issue_fault_responses(
+    client, patch_async_client, response, code, message
+):
+    """Statuses and bodies a live site cannot be made to return on demand."""
+    patch_async_client(httpx.MockTransport(lambda _: response))
 
     result = await client.create_issue(PARAMS)
 
-    assert result["isError"] is True
-    assert result["error"]["code"] == "JIRA_ERROR"
+    assert result == {"isError": True, "error": {"code": code, "message": message}}
 
 
-@pytest.mark.asyncio
-async def test_create_issue_non_json_error_response(client, patch_async_client):
-    """Test create_issue handles non-JSON error response."""
-
-    async def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(500, content=b"Internal Server Error")
-
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
-
-    result = await client.create_issue(PARAMS)
-
-    assert result["isError"] is True
-    assert result["error"]["code"] == "JIRA_ERROR"
-
-
-@pytest.mark.asyncio
 async def test_create_issue_request_error(client, patch_async_client):
     """Test create_issue handles connection errors."""
 
     def handler(_: httpx.Request) -> httpx.Response:
         raise httpx.RequestError("Connection failed")
 
-    transport = httpx.MockTransport(handler)
-    patch_async_client(transport)
+    patch_async_client(httpx.MockTransport(handler))
 
     result = await client.create_issue(PARAMS)
 
-    assert result["isError"] is True
-    assert result["error"]["code"] == "JIRA_ERROR"
+    assert result == {
+        "isError": True,
+        "error": {"code": "JIRA_ERROR", "message": "Request failed: Connection failed"},
+    }

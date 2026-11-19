@@ -1,5 +1,7 @@
 """Tests for ADF conversion utilities."""
 
+import pytest
+
 from simple_jira_mcp.jira.adf import adf_to_text, text_to_adf
 
 
@@ -111,47 +113,46 @@ class TestAdfToText:
         assert adf_to_text(adf) == "Item 1\n\nItem 2"
 
 
+def _doc(*paragraphs):
+    return {
+        "type": "doc",
+        "version": 1,
+        "content": [{"type": "paragraph", "content": list(p)} for p in paragraphs],
+    }
+
+
+def _text(value):
+    return {"type": "text", "text": value}
+
+
+BREAK = {"type": "hardBreak"}
+
+
 class TestTextToAdf:
-    def test_simple_text(self):
-        result = text_to_adf("Hello world")
-        assert result["type"] == "doc"
-        assert result["version"] == 1
-        assert len(result["content"]) == 1
-        assert result["content"][0]["type"] == "paragraph"
-        assert result["content"][0]["content"][0]["text"] == "Hello world"
+    @pytest.mark.parametrize(
+        "text,adf",
+        [
+            ("Hello world", _doc([_text("Hello world")])),
+            ("", {"type": "doc", "version": 1, "content": []}),
+            ("Para 1\n\nPara 2", _doc([_text("Para 1")], [_text("Para 2")])),
+            ("Line 1\nLine 2", _doc([_text("Line 1"), BREAK, _text("Line 2")])),
+            (
+                "First line\nSecond line\n\nAnother paragraph",
+                _doc(
+                    [_text("First line"), BREAK, _text("Second line")],
+                    [_text("Another paragraph")],
+                ),
+            ),
+        ],
+        ids=["simple", "empty", "paragraphs", "hard-break", "break-and-paragraph"],
+    )
+    def test_builds_document(self, text, adf):
+        assert text_to_adf(text) == adf
 
-    def test_empty_text(self):
-        result = text_to_adf("")
-        assert result["type"] == "doc"
-        assert result["content"] == []
-
-    def test_multiple_paragraphs(self):
-        result = text_to_adf("Para 1\n\nPara 2")
-        assert len(result["content"]) == 2
-        assert result["content"][0]["content"][0]["text"] == "Para 1"
-        assert result["content"][1]["content"][0]["text"] == "Para 2"
-
-    def test_single_newlines_preserved(self):
-        result = text_to_adf("Line 1\nLine 2")
-        # Should be in same paragraph with hard break
-        assert len(result["content"]) == 1
-        para_content = result["content"][0]["content"]
-        texts = [c.get("text") for c in para_content if c.get("type") == "text"]
-        assert "Line 1" in texts
-        assert "Line 2" in texts
-
-    def test_roundtrip_simple(self):
-        original = "Hello world"
-        adf = text_to_adf(original)
-        result = adf_to_text(adf)
-        assert result == original
-
-    def test_roundtrip_paragraphs(self):
-        original = "Para 1\n\nPara 2"
-        adf = text_to_adf(original)
-        assert adf_to_text(adf) == original
-
-    def test_roundtrip_single_newlines(self):
-        original = "Line 1\nLine 2"
-        adf = text_to_adf(original)
-        assert adf_to_text(adf) == original
+    @pytest.mark.parametrize(
+        "original",
+        ["Hello world", "Para 1\n\nPara 2", "Line 1\nLine 2"],
+        ids=["simple", "paragraphs", "hard-break"],
+    )
+    def test_roundtrip(self, original):
+        assert adf_to_text(text_to_adf(original)) == original

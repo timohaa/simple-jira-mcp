@@ -79,22 +79,19 @@ class TestLoadConfigs:
         with pytest.raises(ValueError, match="not set"):
             load_configs()
 
-    def test_raises_on_invalid_json(self, clean_config):
-        os.environ["JIRA_CONFIG_JSON"] = "not valid json"
+    @pytest.mark.parametrize(
+        "value,match",
+        [
+            ("not valid json", "Invalid JSON"),
+            ("[]", "non-empty array"),
+            ('{"id": "test"}', "non-empty array"),
+        ],
+        ids=["invalid-json", "empty-array", "non-array"],
+    )
+    def test_raises_on_bad_env_value(self, clean_config, value, match):
+        os.environ["JIRA_CONFIG_JSON"] = value
 
-        with pytest.raises(ValueError, match="Invalid JSON"):
-            load_configs()
-
-    def test_raises_on_empty_array(self, clean_config):
-        os.environ["JIRA_CONFIG_JSON"] = "[]"
-
-        with pytest.raises(ValueError, match="non-empty array"):
-            load_configs()
-
-    def test_raises_on_non_array(self, clean_config):
-        os.environ["JIRA_CONFIG_JSON"] = '{"id": "test"}'
-
-        with pytest.raises(ValueError, match="non-empty array"):
+        with pytest.raises(ValueError, match=match):
             load_configs()
 
     def test_raises_on_missing_field(self, clean_config):

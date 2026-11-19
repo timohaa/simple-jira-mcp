@@ -1,4 +1,4 @@
-"""Tests for Agile board and sprint requests."""
+"""Tests for sprint listing pagination, board skipping and move batching."""
 
 import json
 
@@ -199,23 +199,6 @@ async def test_list_sprints_connection_error(client, patch_async_client):
     result = await client.list_sprints(project_key=None, board_id=1, states=["active"])
 
     assert result["error"]["code"] == "JIRA_ERROR"
-
-
-async def test_move_issues_single_request(client, patch_async_client):
-    requests = []
-
-    def handler(request):
-        requests.append(request)
-        return httpx.Response(204)
-
-    patch_async_client(httpx.MockTransport(handler))
-    result = await client.move_issues_to_sprint(12, ["ONE-1", "ONE-2"])
-
-    assert result == {"sprint_id": 12, "moved": ["ONE-1", "ONE-2"]}
-    assert len(requests) == 1
-    assert requests[0].method == "POST"
-    assert requests[0].url.path == "/rest/agile/1.0/sprint/12/issue"
-    assert requests[0].read() == b'{"issues":["ONE-1","ONE-2"]}'
 
 
 async def test_move_issues_batches_of_50(client, patch_async_client):
