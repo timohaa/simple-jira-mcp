@@ -48,6 +48,18 @@ Prefer LSP over Grep/Read for code navigation (`workspaceSymbol`,
 `findReferences`, `goToDefinition`, `hover`). Use Grep only for text/pattern
 searches.
 
+## Adding a tool
+
+- Implementation in `src/simple_jira_mcp/tools/<name>.py`. Register a
+  read-only tool with `@mcp.tool` in `server.py`; one that changes Jira or
+  local files goes in `write_tools.py` via `register_write_tools`.
+- Wrapper parameters use the `Annotated` types in `schemas.py`; the wrapper
+  logs via `log_call` and returns `tool_result(...)`.
+- Add the tool to `SCHEMAS` and `CALLS` in `tests/server_cases.py`, and to
+  `READ_ONLY_TOOLS` or `DESTRUCTIVE_TOOLS` there.
+- Keep the description to one short sentence: it costs tokens on every client.
+- Document the schema and error codes in `API_REFERENCE.md`.
+
 ## Error Handling
 
 Functions in `tools/` and `jira/` never raise for runtime failures. They
